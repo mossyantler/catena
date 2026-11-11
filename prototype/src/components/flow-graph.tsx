@@ -121,6 +121,8 @@ function RoutedEdge({ data }: EdgeProps<Edge<RoutedData>>) {
   const mk = `url(#${data.mk}-${data.hi ? 'hi' : data.tone === 'open' ? 'open' : 'base'})`
   return (
     <g className={cn('transition-opacity', data.dim && 'opacity-25')}>
+      {/* 누르기 쉬운 넓은 투명 선. 엣지 누르기를 받지 않는 그림에서는 React Flow가 포인터를 끈다. */}
+      <path d={data.d} fill="none" strokeWidth={14} className="stroke-transparent" />
       <path d={data.d} fill="none" className={data.hi ? 'stroke-strong' : s.cls} strokeWidth={data.hi ? 2.25 : s.width} strokeDasharray={s.dash} markerEnd={mk} markerStart={data.both ? mk : undefined} />
       {data.label && data.box ? (
         <g>
@@ -170,13 +172,14 @@ function Markers({ prefix }: { prefix: string }) {
   )
 }
 
-export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minimap = false, className }: {
+export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minimap = false, onEdgeClick, className }: {
   nodes: GraphNode[]
   edges: GraphEdge[]
   groups?: LGroup[]
   /** 엣지 문구 자리: lib/graph.ts layoutGraph의 labels. */
   labels?: 'center' | 'head'
   minimap?: boolean
+  onEdgeClick?: (edgeId: string) => void
   className?: string
 }) {
   const prefix = `mk${useId().replace(/[^a-zA-Z0-9]/g, '')}`
@@ -243,6 +246,7 @@ export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minima
         edgeTypes={edgeTypes}
         // 클릭 처리기가 없으면 React Flow가 노드의 포인터 이벤트를 끈다. 실제 동작은 노드 안의 링크·버튼이 한다.
         onNodeClick={noop}
+        onEdgeClick={onEdgeClick ? (_, e) => onEdgeClick(e.id) : undefined}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}

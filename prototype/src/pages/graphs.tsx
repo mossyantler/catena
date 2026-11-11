@@ -8,6 +8,7 @@ import { StageTag, StatusBadge, Tid } from '@/components/status'
 import { SummaryNodeContent, TaskNodeContent } from '@/components/task'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { scc, type LGroup } from '@/lib/graph'
 import * as RM from '@/lib/rm'
 import { EXECUTOR, hm, profText } from '@/lib/status'
@@ -17,7 +18,7 @@ import { cn } from '@/lib/utils'
 const W = 240
 /** 전체 의존은 열이 많아 카드를 좁힌다(1440px 창에서 0.9배 이상으로 보이게). */
 const W_DAG = 216
-const TASK_H = 116
+const TASK_H = 134
 const SUMMARY_H = 136
 
 /** 원본 의존 엣지: 숫자는 후행 Task가 필요로 하는 슬롯 중 인수된 수(명세 Drill-down 1). */
@@ -39,9 +40,34 @@ function DepLegend({ children }: { children?: ReactNode }) {
   )
 }
 
+/** 집계 엣지 펼치기(집계 엣지 표시 규칙 3): 그 엣지에 묶인 원본 의존만 Task 단위로 보여 준다. */
+function ExpandDialog({ edge, onClose }: { edge: GraphEdge | null; onClose: () => void }) {
+  const { model, nameOf } = useCatena()
+  const deps = edge ? RM.expandEdge(model, edge.from, edge.to) : []
+  const ids = [...new Set(deps.flatMap((e) => [e.from, e.to]))].sort()
+  return (
+    <Dialog open={!!edge} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>{edge ? `${nameOf(edge.from)} ${edge.both ? '↔' : '→'} ${nameOf(edge.to)} 원본 의존` : ''}</DialogTitle>
+          <DialogDescription>집계 엣지에 묶인 원본 의존만 Task 단위로 펼쳤습니다. 화살표 방향이 실제 선후입니다.</DialogDescription>
+        </DialogHeader>
+        {edge ? (
+          <FlowGraph
+            nodes={ids.map((t) => ({ id: t, w: W_DAG, h: TASK_H, label: `${t} ${nameOf(t)}`, href: `#task-${t}`, content: <TaskNodeContent id={t} /> }))}
+            edges={deps.map(leafEdge)}
+            labels="head"
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ---------------- WBS 계층별 공정표 ----------------
 export function WbsPage({ id: idArg }: { id?: string }) {
   const { model, node, nameOf, showClosed } = useCatena()
+  const [open, setOpen] = useState<GraphEdge | null>(null)
   const id = idArg && node(idArg)?.kind === 'summary' ? idArg : undefined
   const { children, edges, external } = RM.edgesAt(model, id, showClosed)
   const kids = children.map((c) => node(c)).sort((a, b) => a.order - b.order)
@@ -75,6 +101,7 @@ export function WbsPage({ id: idArg }: { id?: string }) {
       content: <TaskNodeContent id={n.id} extra={ext ? `범위 밖 선행 ${ext.in} · 후행 ${ext.out}` : undefined} />,
     }
   })
+  const aggs = drawn.filter((e) => e.tone === 'agg')
   const title = id ? nameOf(id) : model.project.name
   return (
     <>
@@ -92,16 +119,30 @@ export function WbsPage({ id: idArg }: { id?: string }) {
         <LegendItem tone="agg">집계 엣지: 하위 Task 의존을 묶은 표시이며 실행 순서를 뜻하지 않음</LegendItem>
         <LegendItem>점선 테두리: 집계 엣지로 서로 오가는 노드 묶음</LegendItem>
       </DepLegend>
-      {nodes.length ? <FlowGraph nodes={nodes} edges={drawn} groups={groups} /> : <Notice>하위 항목이 없습니다.</Notice>}
+      {aggs.length ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          집계 엣지 펼치기(엣지를 눌러도 됩니다)
+          {aggs.map((e) => (
+            <Button key={e.id} size="xs" variant="outline" onClick={() => setOpen(e)}>
+              {nameOf(e.from)} {e.both ? '↔' : '→'} {nameOf(e.to)}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      {nodes.length ? (
+        <FlowGraph nodes={nodes} edges={drawn} groups={groups} onEdgeClick={(eid) => setOpen(aggs.find((e) => e.id === eid) ?? null)} />
+      ) : (
+        <Notice>하위 항목이 없습니다.</Notice>
+      )}
+      <ExpandDialog edge={open} onClose={() => setOpen(null)} />
     </>
   )
 }
 
 // ---------------- 선택 범위의 Dependency DAG ----------------
 export function DagPage({ id: idArg }: { id?: string }) {
-  const { model, node, nameOf } = useCatena()
+  const { model, node, nameOf, dagSel: picked, setDagSel: setPicked } = useCatena()
   const id = idArg && node(idArg)?.kind === 'summary' ? idArg : undefined
-  const [picked, setPicked] = useState<string | null>(null)
   const ids = RM.tasksUnder(model, id).sort((a, b) => a.localeCompare(b))
   const sel = picked && ids.includes(picked) ? picked : null
   const rel = sel ? RM.relations(model, sel) : null

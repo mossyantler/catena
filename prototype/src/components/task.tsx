@@ -130,6 +130,9 @@ export function TaskNodeContent({ id, tag, extra }: { id: string; tag?: string; 
       <span className="shrink-0 truncate text-muted-foreground">
         <BlockText id={id} />
       </span>
+      <span className="shrink-0 truncate text-muted-foreground">
+        <ActionText id={id} />
+      </span>
       {extra ? <span className="shrink-0 truncate text-muted-foreground">{extra}</span> : null}
     </>
   )

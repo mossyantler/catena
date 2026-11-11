@@ -2,7 +2,7 @@
 import { KeyValues, Notice, PageHeader, Section, SubTitle } from '@/components/page'
 import { DiffText, RawButton } from '@/components/raw-viewer'
 import { CountsBar, StatusBadge, Tid } from '@/components/status'
-import { BlockText, CondCount, TaskState } from '@/components/task'
+import { ActionText, BlockText, CondCount, TaskState } from '@/components/task'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -144,6 +144,9 @@ export function PhasePage() {
                   </span>
                   <span className="truncate">
                     <BlockText id={id} />
+                  </span>
+                  <span className="truncate text-muted-foreground">
+                    <ActionText id={id} />
                   </span>
                 </a>
               ))}

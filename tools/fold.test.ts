@@ -121,3 +121,21 @@ test('C-12: CLI의 JSON 값은 화면이 쓰는 읽기 모델 질의 값과 같�
   assert.equal(miss.status, 3);
   assert.equal(JSON.parse(miss.stdout).error.kind, '대상 없음');
 });
+
+test('집계 엣지 펼치기: 묶인 원본 의존 수가 집계 엣지와 같고, 펼친 그림은 비순환이다', () => {
+  const { model: m } = foldBundle(SRC);
+  const { edges } = edgesAt(m);
+  for (const ag of edges.filter(e => e.aggregated)) {
+    const sum = RM.expandEdge(m, ag.from, ag.to).filter(e => RM.path(m, e.from).includes(ag.from)).reduce((n, e) => n + e.count, 0);
+    assert.equal(sum, ag.count, `${ag.from} → ${ag.to}`);
+  }
+  // Backend ↔ Frontend: 양방향 집계 엣지를 펼치면 위상 정렬로 모든 Task를 지울 수 있다(순환 없음).
+  const ex = RM.expandEdge(m, 'S1', 'S2');
+  assert.ok(ex.length > 0);
+  const left = new Set(ex.flatMap(e => [e.from, e.to]));
+  while (left.size) {
+    const free = [...left].filter(t => !ex.some(e => e.to === t && left.has(e.from)));
+    assert.ok(free.length, '순환');
+    free.forEach(t => left.delete(t));
+  }
+});
