@@ -17,7 +17,7 @@ import {
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { Skeleton } from '@/components/ui/skeleton'
-import { layoutGraph, type LGroup, type Laid } from '@/lib/graph'
+import { HEAD, layoutGraph, type LGroup, type Laid } from '@/lib/graph'
 import { cn } from '@/lib/utils'
 
 export type Emphasis = 'selected' | 'related' | 'active' | 'dim' | 'summary' | 'closed'
@@ -41,15 +41,14 @@ export type GraphEdge = {
   to: string
   tone: EdgeTone
   label?: string
-  both?: boolean
   layout?: boolean
   hi?: boolean
   dim?: boolean
 }
 
 type CardData = { node: GraphNode }
-type GroupData = { label: string }
-type RoutedData = { d: string; label?: string; box?: { x: number; y: number; w: number; h: number }; tone: EdgeTone; both?: boolean; hi?: boolean; dim?: boolean; mk: string }
+type GroupData = { label: string; note?: string; onOpen?: () => void }
+type RoutedData = { d: string; label?: string; box?: { x: number; y: number; w: number; h: number }; tone: EdgeTone; hi?: boolean; dim?: boolean; mk: string }
 
 const EMPHASIS: Record<Emphasis, string> = {
   selected: 'ring-2 ring-primary',
@@ -100,11 +99,25 @@ function CardNode({ data }: NodeProps<Node<CardData>>) {
   )
 }
 
+/** 묶음 테두리. 안쪽 엣지 대신 note(방향별 개수)를 적고, onOpen이 있으면 눌러서 묶음 안 원본 의존을 펼친다. */
 function GroupNode({ data }: NodeProps<Node<GroupData>>) {
-  return (
-    <div className="relative size-full rounded-xl border border-dashed border-field">
+  const inner = (
+    <>
       <span className="absolute top-2 left-3 text-xs text-muted-foreground">{data.label}</span>
-    </div>
+      {data.note ? <span className="absolute bottom-2.5 left-3 text-2xs text-foreground">{data.note}</span> : null}
+    </>
+  )
+  const cls = 'relative block size-full rounded-xl border border-dashed border-field'
+  if (!data.onOpen) return <div className={cls}>{inner}</div>
+  return (
+    <button
+      type="button"
+      onClick={data.onOpen}
+      aria-label={`${data.label}. ${data.note ?? ''}`}
+      className={cn(cls, 'text-left transition-colors outline-none hover:border-solid hover:border-strong focus-visible:ring-3 focus-visible:ring-ring/50')}
+    >
+      {inner}
+    </button>
   )
 }
 
@@ -123,7 +136,7 @@ function RoutedEdge({ data }: EdgeProps<Edge<RoutedData>>) {
     <g className={cn('transition-opacity', data.dim && 'opacity-25')}>
       {/* 누르기 쉬운 넓은 투명 선. 엣지 누르기를 받지 않는 그림에서는 React Flow가 포인터를 끈다. */}
       <path d={data.d} fill="none" strokeWidth={14} className="stroke-transparent" />
-      <path d={data.d} fill="none" className={data.hi ? 'stroke-strong' : s.cls} strokeWidth={data.hi ? 2.25 : s.width} strokeDasharray={s.dash} markerEnd={mk} markerStart={data.both ? mk : undefined} />
+      <path d={data.d} fill="none" className={data.hi ? 'stroke-strong' : s.cls} strokeWidth={data.hi ? 2.25 : s.width} strokeDasharray={s.dash} markerEnd={mk} />
       {data.label && data.box ? (
         <g>
           <rect x={data.box.x} y={data.box.y} width={data.box.w} height={data.box.h} rx={4} className="fill-card stroke-border" />
@@ -155,9 +168,13 @@ function firstView(el: HTMLDivElement | null, L: Laid) {
 const nodeTypes = { card: CardNode, bundle: GroupNode, bounds: () => <div aria-hidden className="pointer-events-none size-full" /> }
 const edgeTypes = { routed: RoutedEdge }
 
+/**
+ * 화살촉은 선 굵기와 상관없이 HEAD 크기다. 밑변(refX=0)을 선 끝에 두고, 선은 lib/graph.ts가 HEAD만큼 짧게 끝낸다.
+ * 굵은 선이 화살촉 끝까지 이어지면 뾰족한 끝 양옆으로 선이 비어져 나와 방향이 어긋나 보인다.
+ */
 function Markers({ prefix }: { prefix: string }) {
   const m = (id: string, cls: string) => (
-    <marker id={`${prefix}-${id}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <marker id={`${prefix}-${id}`} viewBox="0 0 10 10" refX="0" refY="5" markerUnits="userSpaceOnUse" markerWidth={HEAD} markerHeight={HEAD} orient="auto">
       <path d="M0,0 L10,5 L0,10 z" className={cls} />
     </marker>
   )
@@ -172,7 +189,7 @@ function Markers({ prefix }: { prefix: string }) {
   )
 }
 
-export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minimap = false, onEdgeClick, className }: {
+export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minimap = false, onEdgeClick, onGroupClick, className }: {
   nodes: GraphNode[]
   edges: GraphEdge[]
   groups?: LGroup[]
@@ -180,6 +197,7 @@ export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minima
   labels?: 'center' | 'head'
   minimap?: boolean
   onEdgeClick?: (edgeId: string) => void
+  onGroupClick?: (groupId: string) => void
   className?: string
 }) {
   const prefix = `mk${useId().replace(/[^a-zA-Z0-9]/g, '')}`
@@ -221,7 +239,7 @@ export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minima
     const rfNodes: Node[] = [
       // 화면 맞춤은 노드만 보므로, 호와 엣지 문구까지 담긴 배치 전체 크기를 보이지 않는 노드로 넣는다.
       { id: '__bounds', type: 'bounds', position: { x: 0, y: 0 }, width: L.width, height: L.height, data: {}, zIndex: -2, selectable: false, draggable: false, focusable: false },
-      ...L.groups.map((g) => ({ id: g.id, type: 'bundle', position: { x: g.x, y: g.y }, width: g.w, height: g.h, data: { label: g.label }, zIndex: -1, selectable: false, draggable: false, focusable: false })),
+      ...L.groups.map((g) => ({ id: g.id, type: 'bundle', position: { x: g.x, y: g.y }, width: g.w, height: g.h, data: { label: g.label, note: g.note, onOpen: onGroupClick ? () => onGroupClick(g.id) : undefined }, zIndex: -1, selectable: false, draggable: false, focusable: false })),
       ...nodes.flatMap((n) => {
         const b = L.nodes.get(n.id)
         return b ? [{ id: n.id, type: 'card', position: { x: b.x, y: b.y }, width: n.w, height: n.h, data: { node: n }, selectable: false, draggable: false, focusable: false }] : []
@@ -229,10 +247,10 @@ export function FlowGraph({ nodes, edges, groups = [], labels = 'center', minima
     ]
     const rfEdges: Edge[] = edges.flatMap((e) => {
       const p = L.edges.get(e.id)
-      return p ? [{ id: e.id, source: e.from, target: e.to, type: 'routed', focusable: false, selectable: false, data: { d: p.d, label: e.label, box: p.label, tone: e.tone, both: e.both, hi: e.hi, dim: e.dim, mk: prefix } }] : []
+      return p ? [{ id: e.id, source: e.from, target: e.to, type: 'routed', focusable: false, selectable: false, data: { d: p.d, label: e.label, box: p.label, tone: e.tone, hi: e.hi, dim: e.dim, mk: prefix } }] : []
     })
     return { rfNodes, rfEdges, height: Math.round(Math.min(Math.max(L.height + 24 + CONTROLS_H, 280), 720)) }
-  }, [laid, nodes, edges, prefix])
+  }, [laid, nodes, edges, prefix, onGroupClick])
 
   if (!flow) return <Skeleton className={cn('h-72 w-full', className)} />
   return (

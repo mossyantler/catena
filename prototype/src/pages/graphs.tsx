@@ -40,19 +40,22 @@ function DepLegend({ children }: { children?: ReactNode }) {
   )
 }
 
-/** 집계 엣지 펼치기(집계 엣지 표시 규칙 3): 그 엣지에 묶인 원본 의존만 Task 단위로 보여 준다. */
-function ExpandDialog({ edge, onClose }: { edge: GraphEdge | null; onClose: () => void }) {
+/** 펼칠 대상: 집계 엣지 하나(노드 쌍 하나) 또는 묶음(구성원 쌍 전부). */
+type Expand = { title: string; what: string; pairs: [string, string][] }
+
+/** 집계 엣지·묶음 펼치기(집계 엣지 표시 규칙 3): 거기에 묶인 원본 의존만 Task 단위로 보여 준다. */
+function ExpandDialog({ open, onClose }: { open: Expand | null; onClose: () => void }) {
   const { model, nameOf } = useCatena()
-  const deps = edge ? RM.expandEdge(model, edge.from, edge.to) : []
+  const deps = [...new Map((open?.pairs ?? []).flatMap(([a, b]) => RM.expandEdge(model, a, b)).map((e) => [`${e.from}>${e.to}`, e])).values()]
   const ids = [...new Set(deps.flatMap((e) => [e.from, e.to]))].sort()
   return (
-    <Dialog open={!!edge} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={!!open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
-          <DialogTitle>{edge ? `${nameOf(edge.from)} ${edge.both ? '↔' : '→'} ${nameOf(edge.to)} 원본 의존` : ''}</DialogTitle>
-          <DialogDescription>집계 엣지에 묶인 원본 의존만 Task 단위로 펼쳤습니다. 화살표 방향이 실제 선후입니다.</DialogDescription>
+          <DialogTitle>{open ? `${open.title} 원본 의존` : ''}</DialogTitle>
+          <DialogDescription>{open?.what}에 묶인 원본 의존만 Task 단위로 펼쳤습니다. 화살표 방향이 실제 선후입니다.</DialogDescription>
         </DialogHeader>
-        {edge ? (
+        {open ? (
           <FlowGraph
             nodes={ids.map((t) => ({ id: t, w: W_DAG, h: TASK_H, label: `${t} ${nameOf(t)}`, href: `#task-${t}`, content: <TaskNodeContent id={t} /> }))}
             edges={deps.map(leafEdge)}
@@ -67,30 +70,40 @@ function ExpandDialog({ edge, onClose }: { edge: GraphEdge | null; onClose: () =
 // ---------------- WBS 계층별 공정표 ----------------
 export function WbsPage({ id: idArg }: { id?: string }) {
   const { model, node, nameOf, showClosed } = useCatena()
-  const [open, setOpen] = useState<GraphEdge | null>(null)
+  const [open, setOpen] = useState<Expand | null>(null)
   const id = idArg && node(idArg)?.kind === 'summary' ? idArg : undefined
   const { children, edges, external } = RM.edgesAt(model, id, showClosed)
   const kids = children.map((c) => node(c)).sort((a, b) => a.order - b.order)
 
   // 집계 엣지로 서로 오가는 노드는 같은 열에 묶음 테두리로 둔다(공정 관점 절, 집계 엣지 표시 규칙 4).
+  // 묶음 안 엣지는 화살표로 그리지 않고 방향별 개수를 묶음에 적는다. 묶음을 누르면 펼친다(2026-11-11 사용자 결정).
   const comp = scc(children, edges)
   const members = new Map<number, string[]>()
   for (const k of kids) members.set(comp.get(k.id)!, [...(members.get(comp.get(k.id)!) ?? []), k.id])
-  const groups: LGroup[] = [...members.values()].filter((m) => m.length > 1).map((m, i) => ({ id: `grp-${i}`, label: '서로 얽힌 묶음 · 배치 순서 없음', members: m }))
-  const together = (a: string, b: string) => groups.some((g) => g.members.includes(a) && g.members.includes(b))
+  const together = (m: string[], e: { from: string; to: string }) => m.includes(e.from) && m.includes(e.to)
+  const groups: LGroup[] = [...members.values()]
+    .filter((m) => m.length > 1)
+    .map((m, i) => ({
+      id: `grp-${i}`,
+      label: '서로 얽힌 묶음 · 배치 순서 없음',
+      members: m,
+      note: edges
+        .filter((e) => together(m, e))
+        .sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to))
+        .map((e) => `${nameOf(e.from)} → ${nameOf(e.to)} ${e.count}`)
+        .concat('눌러서 펼치기')
+        .join(' · '),
+    }))
+  const bundleOf = (g: LGroup): Expand => ({
+    title: `${g.members.map(nameOf).join(' · ')} 묶음`,
+    what: '묶음',
+    pairs: g.members.flatMap((a, i) => g.members.slice(i + 1).map((b): [string, string] => [a, b])),
+  })
 
-  const drawn: GraphEdge[] = []
-  for (const e of edges) {
-    const back = edges.find((x) => x.from === e.to && x.to === e.from)
-    if (back && e.from > e.to) continue
-    if (back)
-      drawn.push({
-        id: `${e.from}<>${e.to}`, from: e.from, to: e.to, tone: 'agg', both: true, layout: !together(e.from, e.to),
-        label: `${nameOf(e.from)} → ${nameOf(e.to)} ${e.count} · ${nameOf(e.to)} → ${nameOf(e.from)} ${back.count}`,
-      })
-    else if (e.aggregated) drawn.push({ id: `${e.from}>${e.to}`, from: e.from, to: e.to, tone: 'agg', label: `의존 ${e.count} · 인수 ${e.accepted}` })
-    else drawn.push(leafEdge(e))
-  }
+  const drawn: GraphEdge[] = edges
+    .filter((e) => !groups.some((g) => together(g.members, e)))
+    .map((e): GraphEdge => (e.aggregated ? { id: `${e.from}>${e.to}`, from: e.from, to: e.to, tone: 'agg', label: `의존 ${e.count} · 인수 ${e.accepted}` } : leafEdge(e)))
+  const edgeOf = (e: GraphEdge): Expand => ({ title: `${nameOf(e.from)} → ${nameOf(e.to)}`, what: '집계 엣지', pairs: [[e.from, e.to]] })
   const nodes: GraphNode[] = kids.map((n) => {
     const ext = external.get(n.id)
     if (n.kind === 'summary')
@@ -117,24 +130,38 @@ export function WbsPage({ id: idArg }: { id?: string }) {
       />
       <DepLegend>
         <LegendItem tone="agg">집계 엣지: 하위 Task 의존을 묶은 표시이며 실행 순서를 뜻하지 않음</LegendItem>
-        <LegendItem>점선 테두리: 집계 엣지로 서로 오가는 노드 묶음</LegendItem>
+        <LegendItem>점선 테두리: 집계 엣지로 서로 오가는 노드 묶음. 안쪽 화살표 대신 방향별 개수를 적음</LegendItem>
       </DepLegend>
-      {aggs.length ? (
+      {aggs.length || groups.length ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          집계 엣지 펼치기(엣지를 눌러도 됩니다)
+          원본 의존 펼치기(그림에서 엣지나 묶음을 눌러도 됩니다)
+          {groups.map((g) => (
+            <Button key={g.id} size="xs" variant="outline" onClick={() => setOpen(bundleOf(g))}>
+              {bundleOf(g).title}
+            </Button>
+          ))}
           {aggs.map((e) => (
-            <Button key={e.id} size="xs" variant="outline" onClick={() => setOpen(e)}>
-              {nameOf(e.from)} {e.both ? '↔' : '→'} {nameOf(e.to)}
+            <Button key={e.id} size="xs" variant="outline" onClick={() => setOpen(edgeOf(e))}>
+              {edgeOf(e).title}
             </Button>
           ))}
         </div>
       ) : null}
       {nodes.length ? (
-        <FlowGraph nodes={nodes} edges={drawn} groups={groups} onEdgeClick={(eid) => setOpen(aggs.find((e) => e.id === eid) ?? null)} />
+        <FlowGraph
+          nodes={nodes}
+          edges={drawn}
+          groups={groups}
+          onEdgeClick={(eid) => {
+            const e = aggs.find((x) => x.id === eid)
+            if (e) setOpen(edgeOf(e))
+          }}
+          onGroupClick={(gid) => setOpen(bundleOf(groups.find((g) => g.id === gid)!))}
+        />
       ) : (
         <Notice>하위 항목이 없습니다.</Notice>
       )}
-      <ExpandDialog edge={open} onClose={() => setOpen(null)} />
+      <ExpandDialog open={open} onClose={() => setOpen(null)} />
     </>
   )
 }

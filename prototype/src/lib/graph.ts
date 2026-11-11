@@ -13,23 +13,26 @@ const getElk = () =>
   }))
 
 export type LNode = { id: string; w: number; h: number }
-/** layout이 false인 엣지는 배치에 쓰지 않고 호로 그린다(묶음 안 양방향 집계 엣지, Agent Graph의 반복 엣지). */
+/** layout이 false인 엣지는 배치에 쓰지 않고 호로 그린다(Agent Graph의 반복 엣지). */
 export type LEdge = { id: string; from: string; to: string; label?: string; layout?: boolean }
-/** 같은 열에 세로로 쌓아 테두리로 묶을 노드(명세 공정 관점 절, 집계 엣지 표시 규칙 4). */
-export type LGroup = { id: string; label: string; members: string[] }
+/**
+ * 같은 열에 세로로 쌓아 테두리로 묶을 노드(명세 공정 관점 절, 집계 엣지 표시 규칙 4).
+ * 묶음 안 엣지는 그리지 않는다. note(방향별 개수)는 테두리 안 아래쪽에 적고, 그 자리를 ELK에 미리 잡는다.
+ */
+export type LGroup = { id: string; label: string; members: string[]; note?: string }
 export type Box = { x: number; y: number; w: number; h: number }
 export type Laid = {
   width: number
   height: number
   nodes: Map<string, Box>
-  groups: (Box & { id: string; label: string })[]
+  groups: (Box & { id: string; label: string; note?: string })[]
   edges: Map<string, { d: string; label?: Box }>
 }
 
 const LABEL_PX = 11
 const LABEL_H = 16
-/** 묶음 안 양방향 호가 오른쪽으로 나가는 폭. */
-const ARC = 36
+/** 화살촉 길이. 선은 화살촉 밑변에서 끝나고 화살촉이 원래 끝점까지 채운다(flow-graph.tsx의 marker와 같은 값). */
+export const HEAD = 9
 
 /** 엣지 문구 폭 어림값(11px Pretendard). 한글은 글자 폭이 글자 크기와 같고, 숫자와 영문은 그 0.6배다. */
 export function textWidth(s: string, px = LABEL_PX) {
@@ -111,6 +114,15 @@ export function roundedPath(pts: ElkPoint[], r = 8) {
   return `${d} L${z.x},${z.y}`
 }
 
+/** 마지막 점을 마지막 구간 방향으로 len만큼 당긴다. 선 끝이 화살촉 밑변에 닿아 둘의 방향이 같아진다. */
+export function trimEnd(pts: ElkPoint[], len = HEAD) {
+  if (pts.length < 2) return pts
+  const [a, z] = [pts[pts.length - 2], pts[pts.length - 1]]
+  const d = Math.hypot(z.x - a.x, z.y - a.y)
+  if (d <= len) return pts
+  return [...pts.slice(0, -1), { x: z.x - ((z.x - a.x) / d) * len, y: z.y - ((z.y - a.y) / d) * len }]
+}
+
 /**
  * labels: 'center'는 ELK가 엣지 가운데에 문구 자리를 만든다(층 사이가 넓어진다).
  * 'head'는 후행 노드에 엣지마다 입력 포트를 따로 주고, 짧은 문구를 화살표 바로 앞에 둔다. 엣지가 많은 그림에 쓴다.
@@ -129,7 +141,6 @@ export async function layoutGraph(nodes: LNode[], edges: LEdge[], groups: LGroup
         }
       : { id: n.id, width: n.w, height: n.h }
   const byId = new Map(nodes.map((n) => [n.id, n]))
-  const arcsIn = (g: LGroup) => edges.filter((e) => e.layout === false && g.members.includes(e.from) && g.members.includes(e.to))
   const children: ElkNode[] = []
   const placed = new Set<string>()
   for (const n of nodes) {
@@ -137,15 +148,13 @@ export async function layoutGraph(nodes: LNode[], edges: LEdge[], groups: LGroup
     if (!g) children.push(leaf(n))
     else if (!placed.has(g.id)) {
       placed.add(g.id)
-      // 묶음 안 호와 그 문구는 묶음 테두리 안(오른쪽 호, 아래 문구)에 두고, 그 자리를 ELK에 미리 잡는다.
-      // 밖에 두면 ELK가 모르는 자리라 다음 열의 노드나 엣지와 겹친다.
-      const lw = Math.max(0, ...arcsIn(g).map((e) => (e.label ? textWidth(e.label) : 0)))
-      const right = arcsIn(g).length ? 12 + ARC : 12
+      // note 자리를 테두리 안에 잡지 않으면 ELK가 모르는 자리라 다음 열의 노드나 엣지와 겹친다.
+      const lw = g.note ? textWidth(g.note) : 0
       const bottom = lw ? 12 + LABEL_H + 8 : 12
       children.push({
         id: g.id,
         layoutOptions: {
-          'elk.padding': `[top=30,left=12,bottom=${bottom},right=${right}]`,
+          'elk.padding': `[top=30,left=12,bottom=${bottom},right=12]`,
           'elk.nodeSize.constraints': 'MINIMUM_SIZE',
           'elk.nodeSize.minimum': `(${lw + 24}, 0)`,
         },
@@ -168,7 +177,7 @@ export async function layoutGraph(nodes: LNode[], edges: LEdge[], groups: LGroup
     const box = { x: n.x ?? 0, y: n.y ?? 0, w: n.width ?? 0, h: n.height ?? 0 }
     if (n.children?.length) {
       const g = groups.find((x) => x.id === n.id)
-      if (g) laidGroups.push({ ...box, id: g.id, label: g.label })
+      if (g) laidGroups.push({ ...box, id: g.id, label: g.label, note: g.note })
       n.children.forEach(walk)
     } else boxes.set(n.id, box)
   }
@@ -187,32 +196,36 @@ export async function layoutGraph(nodes: LNode[], edges: LEdge[], groups: LGroup
       : labels === 'head' && text && end
         ? { x: end.x - textWidth(text) - 10, y: end.y - LABEL_H - 2, w: textWidth(text), h: LABEL_H }
         : undefined
-    paths.set(e.id, { d: roundedPath(pts), label })
+    paths.set(e.id, { d: roundedPath(trimEnd(pts)), label })
   }
   // 배치에 쓰지 않은 엣지: 같은 열이면 오른쪽 호, 뒤로 가면 아래쪽 호.
+  // 곡선은 노드 앞 HEAD + STRAIGHT에서 끝내고, 곧은 STRAIGHT 구간을 지나 HEAD 앞에서 선을 끝낸다.
+  // 곡선 끝에 바로 화살촉을 달면 화살촉은 끝점 방향을 따르고 선은 비스듬히 들어와 둘이 어긋나 보인다.
+  const STRAIGHT = 10
   for (const e of edges) {
     if (e.layout !== false) continue
     const a = boxes.get(e.from)
     const b = boxes.get(e.to)
     if (!a || !b) continue
     const lw = e.label ? textWidth(e.label) : 0
-    const g = inGroup.get(e.from)
-    const gb = g && g === inGroup.get(e.to) ? laidGroups.find((x) => x.id === g.id) : undefined
     if (Math.abs(a.x - b.x) < 1) {
       const x = a.x + a.w
       const y1 = a.y + a.h / 2
       const y2 = b.y + b.h / 2
-      const bend = x + (gb ? ARC - 4 : 36)
-      const label = !e.label ? undefined : gb ? { x: gb.x + 12, y: gb.y + gb.h - LABEL_H - 10, w: lw, h: LABEL_H } : { x: bend - 6, y: (y1 + y2) / 2 - LABEL_H / 2, w: lw, h: LABEL_H }
-      paths.set(e.id, { d: `M${x},${y1} C${bend},${y1} ${bend},${y2} ${x},${y2}`, label })
-      if (!gb) width = Math.max(width, bend + lw + 8)
+      const bend = x + 36
+      const label = e.label ? { x: bend - 6, y: (y1 + y2) / 2 - LABEL_H / 2, w: lw, h: LABEL_H } : undefined
+      paths.set(e.id, { d: `M${x},${y1} C${bend},${y1} ${bend},${y2} ${x + HEAD + STRAIGHT},${y2} L${x + HEAD},${y2}`, label })
+      width = Math.max(width, bend + lw + 8)
     } else {
       const x1 = a.x + a.w / 2
       const y1 = a.y + a.h
       const x2 = b.x + b.w / 2
       const y2 = b.y + b.h
       const lowY = Math.max(y1, y2) + 44
-      paths.set(e.id, { d: `M${x1},${y1} C${x1},${lowY} ${x2},${lowY} ${x2},${y2}`, label: e.label ? { x: (x1 + x2) / 2 - lw / 2, y: lowY - LABEL_H - 2, w: lw, h: LABEL_H } : undefined })
+      paths.set(e.id, {
+        d: `M${x1},${y1} C${x1},${lowY} ${x2},${lowY} ${x2},${y2 + HEAD + STRAIGHT} L${x2},${y2 + HEAD}`,
+        label: e.label ? { x: (x1 + x2) / 2 - lw / 2, y: lowY - LABEL_H - 2, w: lw, h: LABEL_H } : undefined,
+      })
       height = Math.max(height, lowY + 12)
     }
   }
