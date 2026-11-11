@@ -1,0 +1,52 @@
+{
+  "task_id": "T05",
+  "goal": "영수증 올리기·인식 결과 API와 금액 추출 규칙을 설계한다",
+  "input_slots": [
+    {
+      "name": "requirements",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "ocr_api_spec",
+      "kind": "OpenAPI",
+      "required": true
+    },
+    {
+      "name": "field_rules",
+      "kind": "문서",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T05-C1",
+      "description": "OpenAPI 문서가 스키마 검사를 통과한다",
+      "required": true,
+      "method": "auto",
+      "slot": "ocr_api_spec"
+    },
+    {
+      "condition_id": "T05-C2",
+      "description": "개인정보 검토",
+      "required": true,
+      "method": "human",
+      "slot": "ocr_api_spec"
+    },
+    {
+      "condition_id": "T05-C3",
+      "description": "금액·부가세 추출 규칙이 명시돼 있다",
+      "required": true,
+      "method": "human",
+      "slot": "field_rules"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "외부 OCR 서비스 선정",
+  "write_scope": [
+    "docs/receipt-api.yaml",
+    "docs/extract-rules.md"
+  ],
+  "status": "확정"
+}

@@ -1,0 +1,4 @@
+--- a/src/receipt/amount.ts
++++ b/src/receipt/amount.ts
+@@ -0,0 +1,1 @@
++  return { total, supply: Math.trunc(total / 1.1 + 0.5) };

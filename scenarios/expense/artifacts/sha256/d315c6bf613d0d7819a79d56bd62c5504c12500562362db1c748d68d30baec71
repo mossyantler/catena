@@ -1,0 +1,14 @@
+--- a/docs/receipt-api.yaml
++++ b/docs/receipt-api.yaml
+@@ -0,0 +1,4 @@
++openapi: 3.1.0
++paths:
++  /receipts: { post: { summary: 영수증 올리기 } }
++  /receipts/{id}: { get: { summary: 인식 결과 조회 } }
+--- a/docs/extract-rules.md
++++ b/docs/extract-rules.md
+@@ -0,0 +1,4 @@
++# 금액 추출 규칙
++- 합계는 부가세를 포함한 금액으로 읽는다 (R-02)
++- 공급가액 = 합계 ÷ 1.1, 1원 단위 끝수는 내림
++- 날짜를 읽지 못하면 사람이 입력한다

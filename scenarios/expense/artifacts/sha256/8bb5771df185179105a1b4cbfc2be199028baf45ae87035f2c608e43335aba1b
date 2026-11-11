@@ -1,0 +1,2 @@
+{"role":"manager-1","text":"계약 T03의 조건 3개를 보면 CRUD와 한도 검사는 서로 다른 파일을 고친다."}
+{"role":"manager-1","text":"worker-1: src/api/claims.ts, worker-2: src/domain/limit.ts로 나눈다."}

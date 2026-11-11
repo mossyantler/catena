@@ -7,9 +7,10 @@ import { RawViewerProvider } from '@/components/raw-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { LoadError, loadBundle, type Bundle } from '@/lib/data'
+import { BASELINE, LoadError, loadBundle, type Bundle } from '@/lib/data'
 import { parseHash, useHash } from '@/lib/route'
 import { CatenaProvider } from '@/lib/store'
+import { BaselinePage } from '@/pages/baseline'
 import { AgentPage, DagPage, WbsPage } from '@/pages/graphs'
 import { ApprovalPage, MilestonePage, PhasePage } from '@/pages/others'
 import { OverviewPage } from '@/pages/overview'
@@ -70,9 +71,7 @@ export default function App() {
   return (
     <TooltipProvider>
       <CatenaProvider bundle={state.bundle}>
-        <RawViewerProvider>
-          <Screen />
-        </RawViewerProvider>
+        <RawViewerProvider>{BASELINE ? <BaselinePage /> : <Screen />}</RawViewerProvider>
       </CatenaProvider>
     </TooltipProvider>
   )

@@ -1,0 +1,6 @@
+$ npm test -- tests/receipt/amount.test.ts
+✓ 합계 금액을 읽는다
+✓ 부가세를 분리한다
+✗ 공급가액의 1원 단위 끝수는 내림한다 (시도 1)
+  expected parse(11001).supply to be 10000, got 10001
+FAIL 1 of 3

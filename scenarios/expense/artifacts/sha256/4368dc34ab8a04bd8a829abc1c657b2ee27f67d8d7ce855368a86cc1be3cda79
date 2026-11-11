@@ -1,0 +1,43 @@
+{
+  "task_id": "T10",
+  "goal": "와이어프레임과 영수증 API 명세대로 영수증 올리기 화면을 구현한다",
+  "input_slots": [
+    {
+      "name": "ui_mock",
+      "required": true
+    },
+    {
+      "name": "ocr_api_spec",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "upload_ui",
+      "kind": "코드",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T10-C1",
+      "description": "올리기 화면 컴포넌트 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "upload_ui"
+    },
+    {
+      "condition_id": "T10-C2",
+      "description": "화면 검토",
+      "required": true,
+      "method": "human",
+      "slot": "upload_ui"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "카메라 촬영",
+  "write_scope": [
+    "web/src/upload/"
+  ],
+  "status": "확정"
+}

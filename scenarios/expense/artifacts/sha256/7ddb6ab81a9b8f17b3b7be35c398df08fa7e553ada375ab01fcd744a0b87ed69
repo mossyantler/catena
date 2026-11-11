@@ -1,0 +1,51 @@
+{
+  "task_id": "T03",
+  "goal": "경비 청구 생성·조회·취소 API와 월 한도 검사를 구현한다",
+  "input_slots": [
+    {
+      "name": "schema",
+      "required": true
+    },
+    {
+      "name": "screen_flow",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "claim_api",
+      "kind": "코드",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T03-C1",
+      "description": "청구 CRUD 단위 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "claim_api"
+    },
+    {
+      "condition_id": "T03-C2",
+      "description": "월 한도 초과 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "claim_api"
+    },
+    {
+      "condition_id": "T03-C3",
+      "description": "API 계약 일치 검토",
+      "required": true,
+      "method": "human",
+      "slot": "claim_api"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "결재선 지정",
+  "write_scope": [
+    "src/api/claims.ts",
+    "src/domain/limit.ts"
+  ],
+  "status": "확정"
+}

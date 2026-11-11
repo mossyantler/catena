@@ -1,0 +1,5 @@
+$ npm test -- tests/api/claims.test.ts
+✓ 청구를 만든다
+✓ 직원별로 조회한다
+✓ 청구를 취소한다
+PASS 3 of 3
