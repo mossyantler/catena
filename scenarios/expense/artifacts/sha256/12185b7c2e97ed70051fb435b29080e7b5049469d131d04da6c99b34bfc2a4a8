@@ -1,0 +1,43 @@
+{
+  "task_id": "T08",
+  "goal": "영수증 올리기부터 금액 추출까지 통합 테스트를 작성하고 통과시킨다",
+  "input_slots": [
+    {
+      "name": "amount_parser",
+      "required": true
+    },
+    {
+      "name": "image_store",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "receipt_test_report",
+      "kind": "테스트 보고서",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T08-C1",
+      "description": "영수증 처리 통합 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "receipt_test_report"
+    },
+    {
+      "condition_id": "T08-C2",
+      "description": "테스트 범위 검토",
+      "required": true,
+      "method": "human",
+      "slot": "receipt_test_report"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "부하 시험",
+  "write_scope": [
+    "tests/receipt/"
+  ],
+  "status": "확정"
+}

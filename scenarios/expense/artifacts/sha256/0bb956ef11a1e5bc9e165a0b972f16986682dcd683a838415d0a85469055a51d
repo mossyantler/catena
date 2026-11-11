@@ -1,0 +1,39 @@
+{
+  "task_id": "T06",
+  "goal": "추출 규칙에 맞춰 영수증 합계에서 공급가액을 계산한다",
+  "input_slots": [
+    {
+      "name": "field_rules",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "amount_parser",
+      "kind": "코드",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T06-C1",
+      "description": "금액 추출 단위 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "amount_parser"
+    },
+    {
+      "condition_id": "T06-C2",
+      "description": "코드 검토",
+      "required": true,
+      "method": "human",
+      "slot": "amount_parser"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "이미지 저장",
+  "write_scope": [
+    "src/receipt/amount.ts"
+  ],
+  "status": "확정"
+}

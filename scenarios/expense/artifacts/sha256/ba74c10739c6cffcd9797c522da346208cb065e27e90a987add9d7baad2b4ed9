@@ -1,0 +1,2 @@
+{"role":"reviewer-1","text":"POST /claims 응답 필드가 계약과 같다."}
+{"role":"reviewer-1","text":"GET /claims 응답에 반려 사유(reject_reason)가 없다. 한도 초과(R-04)로 막힌 청구를 구분하려면 필요하다."}

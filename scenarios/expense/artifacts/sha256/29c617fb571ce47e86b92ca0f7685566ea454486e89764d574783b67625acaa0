@@ -1,0 +1,4 @@
+--- a/db/migrations/000_employees.up.sql
++++ b/db/migrations/000_employees.up.sql
+@@ -0,0 +1,1 @@
++CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT NOT NULL, monthly_limit INTEGER NOT NULL);

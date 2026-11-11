@@ -441,7 +441,7 @@ export function card(m: Model, taskId: string) {
   let rep: string;
   if (n.lifecycle !== '활성') rep = n.lifecycle;
   else if (['대기', '실행 중', '일시 중단', '결과 불명'].includes(exec)) rep = exec;
-  else if (acceptance === '검증 중' || acceptance === '재검증 필요') rep = acceptance;
+  else if (acceptance === '검증 중') rep = acceptance;
   else if (exec === '실패') rep = '실패';
   else if (acceptance === '인수됨') rep = '인수됨';
   else if (waits.length) rep = '대기';
@@ -474,6 +474,12 @@ export function tasksUnder(m: Model, nodeId?: string, includeClosed = false): st
 
 // parent(없으면 최상위)의 하위 노드 사이에 그릴 엣지. 한쪽이라도 요약 노드면 집계 엣지다.
 // 하위 노드마다 범위 밖과 오가는 의존 수도 함께 센다.
+// 집계 엣지 펼치기(공정 관점 절, 집계 엣지 표시 규칙 3): 형제 노드 a, b 사이(양방향 모두)에 묶인 원본 의존만 Task 단위로.
+export function expandEdge(m: Model, a: string, b: string) {
+  const inside = (taskId: string, x: string) => path(m, taskId).includes(x);
+  return taskEdges(m, [...m.nodes.keys()]).filter(e => (inside(e.from, a) && inside(e.to, b)) || (inside(e.from, b) && inside(e.to, a)));
+}
+
 export function edgesAt(m: Model, parent?: string, includeClosed = false) {
   const children = [...m.nodes.values()].filter(n => n.parent === parent && (includeClosed || !CLOSED.includes(n.lifecycle))).map(n => n.id);
   const childOf = (taskId: string) => {

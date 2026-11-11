@@ -1,0 +1,4 @@
+$ npm run migrate:check
+apply 001_init ... ok
+check references ... FAIL
+error: claims.employee_id가 가리키는 employees 테이블이 없음

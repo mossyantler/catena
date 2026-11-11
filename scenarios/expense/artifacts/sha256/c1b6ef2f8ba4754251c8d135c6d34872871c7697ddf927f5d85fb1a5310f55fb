@@ -1,0 +1,3 @@
+$ npx openapi-lint docs/receipt-api.yaml
+0 errors, 0 warnings
+PASS

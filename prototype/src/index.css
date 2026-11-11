@@ -1,0 +1,308 @@
+/* Catena 시안 테마. academic-assistant 대시보드의 2차 시안 체계(2026-11-07: 무채색, Pretendard 하나, 글자 크기 여섯 가지,
+   색은 뜻이 있을 때만)를 가져오고, 색의 뜻을 공정 상태로 바꿨다. 규칙과 이유는 DESIGN.md. */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "@xyflow/react/dist/style.css";
+
+/* 어두운 모드: 페이지가 data-theme을 받으면 그대로 따르고, 없으면 기기 설정을 따른다. */
+@custom-variant dark {
+  &:where([data-theme=dark], [data-theme=dark] *) { @slot; }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme=light]), :root:not([data-theme=light]) *) { @slot; }
+  }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', ui-sans-serif, system-ui, sans-serif;
+  /* ID, 시각, 개수는 Pretendard의 같은 폭 숫자로 맞춘다(.font-mono). 원문·diff만 고정폭 글꼴을 쓴다. */
+  --font-mono: var(--font-sans);
+  --font-code: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-strong: var(--strong);
+  --color-field: var(--field);
+  /* 공정 상태 색. 색은 이 여섯 가지 뜻에만 쓴다(DESIGN.md 2절). */
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-run: var(--run);
+  --color-run-soft: var(--run-soft);
+  --color-wait: var(--wait);
+  --color-wait-soft: var(--wait-soft);
+  --color-fail: var(--fail);
+  --color-fail-soft: var(--fail-soft);
+  --color-user: var(--user);
+  --color-user-soft: var(--user-soft);
+  --color-ready: var(--ready);
+  --color-ready-soft: var(--ready-soft);
+  --shadow-card: var(--card-shadow);
+  /* 글자 크기 여섯 가지. Tailwind의 다른 크기는 지워 두어 빌드되지 않는다. */
+  --text-*: initial;
+  /* 11px: 그래프의 엣지 문구만. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.3;
+  /* 12px: 메타, 배지, 표의 보조 글. */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.5;
+  /* 14px: 본문, 목록 제목, 컨트롤. */
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  /* 16px: 구역 제목. */
+  --text-base: 1rem;
+  --text-base--line-height: 1.6;
+  /* 22px: 폰의 화면 제목. */
+  --text-section: 1.375rem;
+  --text-section--line-height: 1.3;
+  /* 28px: 데스크톱의 화면 제목. */
+  --text-title: 1.75rem;
+  --text-title--line-height: 1.25;
+  --radius-dot: 3px;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  --background: #F4F4F5;
+  --foreground: #2A2C30;
+  --strong: #111214;
+  --card: #FFFFFF;
+  --card-foreground: #2A2C30;
+  --popover: #FFFFFF;
+  --popover-foreground: #2A2C30;
+  --primary: #111214;
+  --primary-foreground: #FFFFFF;
+  --secondary: oklch(0% 0 0 / 0.05);
+  --secondary-foreground: #111214;
+  --muted: #F0F0F1;
+  --muted-foreground: #62666D;
+  --accent: oklch(0% 0 0 / 0.06);
+  --accent-foreground: #111214;
+  --destructive: #C93A3C;
+  --border: oklch(0% 0 0 / 0.09);
+  --input: oklch(0% 0 0 / 0.14);
+  --ring: #62666D;
+  --radius: 0.625rem;
+  --card-shadow: 0 0 #0000;
+  --sidebar: #F4F4F5;
+  --sidebar-foreground: #2A2C30;
+  --sidebar-primary: #111214;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: oklch(0% 0 0 / 0.06);
+  --sidebar-accent-foreground: #111214;
+  --sidebar-border: oklch(0% 0 0 / 0.08);
+  --sidebar-ring: #62666D;
+  --field: #8A8F98;
+  --ok: #1E8A3A;
+  --ok-soft: oklch(60% 0.15 150 / 0.12);
+  --run: #2A6FC0;
+  --run-soft: oklch(58% 0.14 255 / 0.12);
+  --wait: #A85A0C;
+  --wait-soft: oklch(70% 0.14 65 / 0.16);
+  --fail: #C93A3C;
+  --fail-soft: oklch(55% 0.18 25 / 0.1);
+  --user: #7347D1;
+  --user-soft: oklch(55% 0.18 295 / 0.11);
+  --ready: #12807A;
+  --ready-soft: oklch(60% 0.1 190 / 0.13);
+}
+
+:root[data-theme='dark'] {
+  --background: #111214;
+  --foreground: #D0D6E0;
+  --strong: #F2F3F4;
+  --card: #111214;
+  --card-foreground: #D0D6E0;
+  --popover: #18191B;
+  --popover-foreground: #D0D6E0;
+  --primary: #F2F3F4;
+  --primary-foreground: #0A0B0C;
+  --secondary: oklch(100% 0 0 / 0.08);
+  --secondary-foreground: #F2F3F4;
+  --muted: #18191B;
+  --muted-foreground: #8A8F98;
+  --accent: oklch(100% 0 0 / 0.08);
+  --accent-foreground: #F2F3F4;
+  --destructive: #EB5757;
+  --border: oklch(100% 0 0 / 0.08);
+  --input: oklch(100% 0 0 / 0.1);
+  --ring: #8A8F98;
+  --sidebar: #0A0B0C;
+  --sidebar-foreground: #D0D6E0;
+  --sidebar-primary: #F2F3F4;
+  --sidebar-primary-foreground: #0A0B0C;
+  --sidebar-accent: oklch(100% 0 0 / 0.08);
+  --sidebar-accent-foreground: #F2F3F4;
+  --sidebar-border: oklch(100% 0 0 / 0.07);
+  --sidebar-ring: #8A8F98;
+  --field: #63666C;
+  --ok: #3DB45A;
+  --ok-soft: oklch(64% 0.17 148 / 0.15);
+  --run: #5EA8F7;
+  --run-soft: oklch(68% 0.13 250 / 0.16);
+  --wait: #F0A04B;
+  --wait-soft: oklch(76% 0.14 65 / 0.15);
+  --fail: #EB5757;
+  --fail-soft: oklch(64% 0.19 25 / 0.15);
+  --user: #A98BFA;
+  --user-soft: oklch(70% 0.15 295 / 0.16);
+  --ready: #36C2B4;
+  --ready-soft: oklch(72% 0.11 185 / 0.15);
+  color-scheme: dark;
+}
+
+/* 위와 같은 값. 페이지에 data-theme이 없을 때 기기 설정이 어두우면 쓴다. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --background: #111214;
+    --foreground: #D0D6E0;
+    --strong: #F2F3F4;
+    --card: #111214;
+    --card-foreground: #D0D6E0;
+    --popover: #18191B;
+    --popover-foreground: #D0D6E0;
+    --primary: #F2F3F4;
+    --primary-foreground: #0A0B0C;
+    --secondary: oklch(100% 0 0 / 0.08);
+    --secondary-foreground: #F2F3F4;
+    --muted: #18191B;
+    --muted-foreground: #8A8F98;
+    --accent: oklch(100% 0 0 / 0.08);
+    --accent-foreground: #F2F3F4;
+    --destructive: #EB5757;
+    --border: oklch(100% 0 0 / 0.08);
+    --input: oklch(100% 0 0 / 0.1);
+    --ring: #8A8F98;
+    --sidebar: #0A0B0C;
+    --sidebar-foreground: #D0D6E0;
+    --sidebar-primary: #F2F3F4;
+    --sidebar-primary-foreground: #0A0B0C;
+    --sidebar-accent: oklch(100% 0 0 / 0.08);
+    --sidebar-accent-foreground: #F2F3F4;
+    --sidebar-border: oklch(100% 0 0 / 0.07);
+    --sidebar-ring: #8A8F98;
+    --field: #63666C;
+    --ok: #3DB45A;
+    --ok-soft: oklch(64% 0.17 148 / 0.15);
+    --run: #5EA8F7;
+    --run-soft: oklch(68% 0.13 250 / 0.16);
+    --wait: #F0A04B;
+    --wait-soft: oklch(76% 0.14 65 / 0.15);
+    --fail: #EB5757;
+    --fail-soft: oklch(64% 0.19 25 / 0.15);
+    --user: #A98BFA;
+    --user-soft: oklch(70% 0.15 295 / 0.16);
+    --ready: #36C2B4;
+    --ready-soft: oklch(72% 0.11 185 / 0.15);
+    color-scheme: dark;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    overflow-x: clip;
+  }
+  body {
+    @apply bg-background text-sm text-foreground;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  html {
+    @apply font-sans;
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent) transparent;
+  }
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+  pre, code, kbd, samp {
+    font-family: var(--font-code);
+  }
+}
+
+/* 기기의 움직임 줄이기 설정을 따른다. */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 폰: 버튼의 보이는 크기는 그대로 두고 누르는 영역만 44px로 넓힌다. */
+@media (width < 64rem) {
+  [data-slot='button'], [data-slot='toggle'], [data-slot='switch'] {
+    position: relative;
+  }
+  [data-slot='button']::before, [data-slot='toggle']::before, [data-slot='switch']::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  [data-slot='badge'] { max-width: 100%; white-space: normal; }
+}
+
+/* 공정표 캔버스(React Flow)를 테마 토큰에 맞춘다. 제도용지 격자는 공정표 화면의 표시다. */
+.react-flow {
+  --xy-background-color: var(--muted);
+  --xy-background-pattern-color: color-mix(in oklab, var(--foreground) 9%, transparent);
+  --xy-edge-stroke: var(--muted-foreground);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--muted);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--strong);
+  --xy-controls-button-border-color: var(--border);
+  --xy-controls-box-shadow: 0 0 0 1px var(--border);
+  --xy-minimap-background-color: var(--card);
+  --xy-minimap-mask-background-color: color-mix(in oklab, var(--background) 70%, transparent);
+  --xy-minimap-mask-stroke-color: var(--border);
+  --xy-minimap-node-background-color: color-mix(in oklab, var(--foreground) 22%, transparent);
+  --xy-attribution-background-color: transparent;
+  --xy-node-boxshadow-selected: none;
+  --xy-node-border-radius: var(--radius);
+}
+.react-flow__node { cursor: default; }
+.react-flow__controls { border-radius: var(--radius); overflow: hidden; }
+.react-flow__minimap { border-radius: var(--radius); box-shadow: 0 0 0 1px var(--border); }
+
+/* 원문·diff 보기 */
+.diff .add { color: var(--ok); }
+.diff .del { color: var(--fail); }
+.diff .hunk { color: var(--muted-foreground); }
