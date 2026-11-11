@@ -4,5 +4,5 @@
   "schema_version": 1,
   "description": "회의실 예약 서비스 개발 2일차 오후의 공정. 만든 데이터이며 실제 실행이 아니다. Product MVP 기준 시나리오(core spec 13장)의 항목을 모두 담는다. Agent 노드의 Runtime·모델 구성(Codex 포함)은 확장 단계를 가정한 값이다.",
   "source": null,
-  "default_position": 193
+  "default_position": 201
 }

@@ -441,7 +441,7 @@ export function card(m: Model, taskId: string) {
   let rep: string;
   if (n.lifecycle !== '활성') rep = n.lifecycle;
   else if (['대기', '실행 중', '일시 중단', '결과 불명'].includes(exec)) rep = exec;
-  else if (acceptance === '검증 중' || acceptance === '재검증 필요') rep = acceptance;
+  else if (acceptance === '검증 중') rep = acceptance;
   else if (exec === '실패') rep = '실패';
   else if (acceptance === '인수됨') rep = '인수됨';
   else if (waits.length) rep = '대기';

@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "jsPlugins": ["@shadcn/lint"],
+  "ignorePatterns": ["dist/**", "prototype/public/**"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    // 화면은 shadcn 부품을 놓고 띄울 뿐, 부품의 색·글자·모양은 부품이 정한다(DESIGN.md).
+    "shadcn/no-restyle": [
+      "error",
+      {
+        "allow": ["layout"],
+        "contracts": [
+          { "pattern": "^Card(Header|Content|Footer)?$", "allow": ["layout", "spacing"] },
+          { "pattern": "^CardTitle$", "allow": ["layout", "typography"] },
+          { "pattern": "^Badge$", "allow": ["layout", "whitespace-normal", "break-all"] },
+          { "pattern": "^Button$", "allow": ["layout", "spacing"] }
+        ]
+      }
+    ],
+    "shadcn/no-raw-colors": "error",
+    // 크기는 index.css의 테마 토큰을 쓴다. 동적 값은 CSS 변수로 넘긴다: style={{ '--h': h }} + h-(--h).
+    "shadcn/no-arbitrary-values": ["error", { "allow": ["layout"] }],
+    "shadcn/no-inline-styles": "error",
+    "shadcn/require-static-classes": "error",
+    "shadcn/no-unknown-classes": ["error", { "allow": ["diff", "add", "del", "hunk"] }]
+  },
+  "overrides": [
+    {
+      "files": ["prototype/src/components/ui/**"],
+      "rules": {
+        "shadcn/no-restyle": "off",
+        "shadcn/no-arbitrary-values": "off",
+        "shadcn/require-static-classes": "off"
+      }
+    }
+  ]
+}

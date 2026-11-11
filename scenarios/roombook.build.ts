@@ -120,6 +120,7 @@ node('T11', 'S2', 'task', '로그인 화면 구현', 3, 'P3');
 node('T13', 'S2', 'task', '관리자 통계 화면', 4, 'P3');
 node('S3', null, 'summary', '배포', 4);
 node('T12', 'S3', 'task', '배포 파이프라인 구성', 1, 'P5');
+node('T14', 'S3', 'task', '운영 배포', 2, 'P5');
 
 at(1, '09:10');
 contract('T01', '회의실 예약 서비스 v1의 요구사항을 ID와 수용 기준으로 정리한다', '관리자 기능', ['docs/requirements.md'],
@@ -311,6 +312,16 @@ contract('T12', '테스트와 배포를 자동으로 돌리는 CI 파이프라�
   [], [['pipeline', '설정']],
   [['T12-C1', 'CI 파이프라인 시험 실행 성공', 'auto', 'pipeline'], ['T12-C2', '배포 권한 검토', 'human']]);
 simpleFlow('T12');
+// 운영 배포는 백엔드·프론트엔드 결과와 파이프라인이 모두 인수돼야 착수한다. 파이프라인(T12)은 구현과 따로 먼저 만들 수 있다.
+contract('T14', '인수된 백엔드와 화면을 파이프라인으로 운영 서버에 배포한다', '무중단 배포', ['deploy/'],
+  ['auth_test_report', 'conflict_test_report', 'reservation_ui', 'login_ui', 'pipeline'], [['release', '배포 기록']],
+  [['T14-C1', '스테이징 배포 뒤 스모크 시험 통과', 'auto', 'release'], ['T14-C2', '운영 배포 승인', 'human', 'release']]);
+simpleFlow('T14');
+link('T05', 'auth_test_report', 'T14', 'auth_test_report');
+link('T08', 'conflict_test_report', 'T14', 'conflict_test_report');
+link('T10', 'reservation_ui', 'T14', 'reservation_ui');
+link('T11', 'login_ui', 'T14', 'login_ui');
+link('T12', 'pipeline', 'T14', 'pipeline');
 at(2, '09:40'); act('R03-1', 'work', 1, W(3), '도구 호출', 'src/auth/token.ts 작성', '시스템 기록');
 at(2, '09:50'); submit('R03-1', 'work', 'S03-1', [{ output_slot: 'token_service', path: 'src/auth/token.ts' }], diff('src/auth/token.ts', TOKEN_TS));
 usage('R03-1', 'work', 0.38); finish('R03-1', 'work', 1, W(3));
