@@ -1,0 +1,39 @@
+{
+  "task_id": "T07",
+  "goal": "영수증 API 명세에 맞춰 영수증 이미지를 저장하고 지운다",
+  "input_slots": [
+    {
+      "name": "ocr_api_spec",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "image_store",
+      "kind": "코드",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T07-C1",
+      "description": "이미지 저장·삭제 단위 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "image_store"
+    },
+    {
+      "condition_id": "T07-C2",
+      "description": "코드 검토",
+      "required": true,
+      "method": "human",
+      "slot": "image_store"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "금액 추출",
+  "write_scope": [
+    "src/receipt/store.ts"
+  ],
+  "status": "확정"
+}

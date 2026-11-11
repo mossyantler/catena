@@ -1,0 +1,39 @@
+{
+  "task_id": "T01",
+  "goal": "사내 경비 정산 서비스 v1의 요구사항을 ID와 수용 기준으로 정리한다",
+  "input_slots": [
+    {
+      "name": "brief",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "requirements",
+      "kind": "문서",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T01-C1",
+      "description": "요구사항마다 ID와 수용 기준이 있다",
+      "required": true,
+      "method": "auto",
+      "slot": "requirements"
+    },
+    {
+      "condition_id": "T01-C2",
+      "description": "요구사항 검토",
+      "required": true,
+      "method": "human",
+      "slot": "requirements"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "회계 시스템 연동",
+  "write_scope": [
+    "docs/requirements.md"
+  ],
+  "status": "확정"
+}

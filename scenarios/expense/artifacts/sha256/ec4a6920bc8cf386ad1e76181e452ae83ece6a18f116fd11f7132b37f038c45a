@@ -1,0 +1,5 @@
+--- a/db/migrations/001_init.up.sql
++++ b/db/migrations/001_init.up.sql
+@@ -0,0 +1,2 @@
++CREATE TABLE claims (id INTEGER PRIMARY KEY, employee_id INTEGER REFERENCES employees(id), amount INTEGER NOT NULL, status TEXT NOT NULL);
++CREATE TABLE receipts (id INTEGER PRIMARY KEY, claim_id INTEGER REFERENCES claims(id), image_key TEXT, total INTEGER, issued_on TEXT);

@@ -10,8 +10,42 @@ import { join } from 'node:path';
 import { foldBundle, card, edgesAt } from './fold.ts';
 import * as RM from './readmodel.ts';
 
-const SRC = join(import.meta.dirname, '..', 'scenarios', 'roombook');
+const SCN = join(import.meta.dirname, '..', 'scenarios');
+const SRC = join(SCN, 'roombook');
+const EXP = join(SCN, 'expense'); // 사용자 시험용 두 번째 시나리오
 const CLI = join(import.meta.dirname, 'catena.ts');
+// expense의 ID → 같은 자리의 roombook ID. docs/user-test.md의 대응표와 같다.
+const TO_ROOMBOOK: Record<string, string> = {
+  T01: 'T01', T02: 'T06', T03: 'T07', T04: 'T08', T05: 'T02', T06: 'T03', T07: 'T04', T08: 'T05', T09: 'T09', T10: 'T11', T11: 'T10',
+  T12: 'T13', T13: 'T12', T14: 'T14', S1: 'S1', S11: 'S12', S12: 'S11', S121: 'S111', S2: 'S2', S3: 'S3',
+};
+const readEvents = (dir: string) => readFileSync(join(dir, 'events.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+
+// 이름과 내용을 뺀 공정 구조. map으로 ID를 바꿔 두 시나리오를 같은 기준에서 비교한다.
+// 형제 순서(order)는 일부러 바꿨으므로 비교하지 않는다.
+function shape(dir: string, map: (id: string) => string, at?: number) {
+  const { model: m } = foldBundle(dir, at);
+  const ids = RM.tasksUnder(m);
+  const srt = (xs: any[]) => xs.map(x => JSON.stringify(x)).sort();
+  return {
+    nodes: srt([...m.nodes.values()].map(n => [map(n.id), n.parent ? map(n.parent) : null, n.kind, n.phase ?? null, n.lifecycle])),
+    cards: srt(ids.map(id => {
+      const c = card(m, id);
+      return [map(id), c.rep, c.stages, c.exec, c.acceptance, c.accepted, c.total, c.passed, RM.hasRework(m, id),
+        c.waits.map(w => [w.type, w.action.actor, w.source && m.nodes.has(w.source) ? map(w.source) : null]),
+        RM.rework(m, id).map(r => [r.round, r.failed.length])];
+    })),
+    edges: srt([undefined, ...[...m.nodes.values()].filter(n => n.kind === 'summary').map(n => n.id)].map(s =>
+      [s && map(s), srt(edgesAt(m, s).edges.map(e => [map(e.from), map(e.to), e.count, e.accepted, e.aggregated]))])),
+    taskEdges: srt(RM.taskEdges(m, ids).map(e => [map(e.from), map(e.to), e.count, e.accepted])),
+    inbox: RM.inbox(m).map(x => [map(x.id), x.w.type]),
+    blocking: srt([...RM.blocking(m)].map(([k, v]) => [map(k), v])),
+    milestones: [...m.milestones.values()].map(ms => ms.items.map((it: any) =>
+      [map(it.task_id), !!it.slot, it.slot ? m.slotAccepted.has(`${it.task_id}/${it.slot}`) : m.taskAccepted.has(it.task_id)])),
+    agents: srt(ids.filter(id => m.workflows.has(id)).map(id => [map(id), RM.agentGraph(m, id).nodes.map((n: any) =>
+      [n.stage, n.executor, n.role ?? null, n.status, n.runs, n.instances, n.profiles.map((p: any) => p.runtime)])])),
+  };
+}
 
 // 묶음을 임시 폴더로 복사하고 events를 고친다. renumber면 seq를 다시 매긴다.
 function mutate(fn: (events: any[]) => any[], renumber = true) {
@@ -86,10 +120,28 @@ test('E8: dependency 대기 사유는 이벤트로 발행할 수 없다', () => 
 });
 
 test('같은 생성기를 다시 돌리면 같은 이벤트가 나온다', () => {
-  const hash = () => createHash('sha256').update(readFileSync(join(SRC, 'events.jsonl'))).digest('hex');
-  const before = hash();
-  execFileSync(process.execPath, [join(import.meta.dirname, '..', 'scenarios', 'roombook.build.ts')]);
-  assert.equal(hash(), before);
+  for (const name of ['roombook', 'expense']) {
+    const hash = () => createHash('sha256').update(readFileSync(join(SCN, name, 'events.jsonl'))).digest('hex');
+    const before = hash();
+    execFileSync(process.execPath, [join(SCN, `${name}.build.ts`)]);
+    assert.equal(hash(), before, name);
+  }
+});
+
+test('사용자 시험: 두 번째 시나리오는 검사를 통과하고 roombook과 구조가 같다', () => {
+  assert.deepEqual(readEvents(EXP).map(e => e.type), readEvents(SRC).map(e => e.type));
+  const toRb = (id: string) => TO_ROOMBOOK[id] ?? assert.fail(`대응표에 없는 ID ${id}`);
+  const same = (id: string) => id;
+  assert.deepEqual(shape(EXP, toRb), shape(SRC, same));
+  // 1일차 끝(수정 반복 Task가 착수하기 직전)에서도 같다.
+  const mid = readEvents(SRC).find(e => e.type === 'run.created' && e.payload.run_id === 'R03-1').seq - 1;
+  assert.deepEqual(shape(EXP, toRb, mid), shape(SRC, same, mid));
+  // 번호를 섞었으므로 같은 자리의 Task 번호가 대부분 다르다(번호를 외워 답하지 못하게).
+  const { model: m } = foldBundle(EXP);
+  assert.equal(card(m, 'T06').waits[0].type, 'decision');
+  assert.equal(card(m, 'T05').waits[0].type, 'approval');
+  assert.equal(card(m, 'T13').waits[0].type, 'resource');
+  assert.deepEqual(card(m, 'T03').stages, ['구현', '검증']);
 });
 
 test('Q8·profile: 수정 반복 회차와 노드를 수행한 Runtime이 읽기 모델에 보인다', () => {
@@ -103,9 +155,10 @@ test('Q8·profile: 수정 반복 회차와 노드를 수행한 Runtime이 읽기
 });
 
 test('C-12: CLI의 JSON 값은 화면이 쓰는 읽기 모델 질의 값과 같다', () => {
-  for (const at of [undefined, 120]) {
-    const { model: m, manifest, position, total } = foldBundle(SRC, at);
-    const cli = (...a: string[]) => JSON.parse(execFileSync(process.execPath, [CLI, ...a, '--json', ...(at ? ['--at', String(at)] : [])], { encoding: 'utf8' }));
+  // [묶음, 수정 반복 Task, Manager가 나눠 맡긴 Task]
+  for (const [dir, T03, T07] of [[SRC, 'T03', 'T07'], [EXP, 'T06', 'T03']]) for (const at of [undefined, 120]) {
+    const { model: m, manifest, position, total } = foldBundle(dir, at);
+    const cli = (...a: string[]) => JSON.parse(execFileSync(process.execPath, [CLI, ...a, '--bundle', dir, '--json', ...(at ? ['--at', String(at)] : [])], { encoding: 'utf8' }));
     const st = cli('status');
     assert.deepEqual(st.source, { origin: manifest.origin, dataset_id: manifest.dataset_id, position: Math.min(position, total), total });
     const ids = RM.tasksUnder(m);
@@ -114,8 +167,8 @@ test('C-12: CLI의 JSON 값은 화면이 쓰는 읽기 모델 질의 값과 같�
       ids.map(id => { const c = card(m, id); return [id, c.rep, c.accepted, c.waits[0]?.type ?? null]; }));
     assert.deepEqual(st.data.inbox.map((x: any) => x.task), RM.inbox(m).map(x => x.id));
     assert.deepEqual(cli('graph').data.task_edges, RM.taskEdges(m, RM.tasksUnder(m)));
-    assert.deepEqual(cli('show', 'T03').data.runs.map((r: any) => [r.run_id, r.round, r.failed.length]), RM.rework(m, 'T03').map(r => [r.run_id, r.round, r.failed.length]));
-    assert.deepEqual(cli('agents', 'T07').data.nodes.map((n: any) => [n.node_id, n.status, n.runs]), RM.agentGraph(m, 'T07').nodes.map((n: any) => [n.node_id, n.status, n.runs]));
+    assert.deepEqual(cli('show', T03).data.runs.map((r: any) => [r.run_id, r.round, r.failed.length]), RM.rework(m, T03).map(r => [r.run_id, r.round, r.failed.length]));
+    assert.deepEqual(cli('agents', T07).data.nodes.map((n: any) => [n.node_id, n.status, n.runs]), RM.agentGraph(m, T07).nodes.map((n: any) => [n.node_id, n.status, n.runs]));
   }
   const miss = spawnSync(process.execPath, [CLI, 'show', 'T99', '--json'], { encoding: 'utf8' });
   assert.equal(miss.status, 3);

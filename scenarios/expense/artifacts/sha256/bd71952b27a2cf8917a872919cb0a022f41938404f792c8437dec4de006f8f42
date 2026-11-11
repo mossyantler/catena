@@ -1,0 +1,4 @@
+openapi: 3.1.0
+paths:
+  /receipts: { post: { summary: 영수증 올리기 } }
+  /receipts/{id}: { get: { summary: 인식 결과 조회 } }

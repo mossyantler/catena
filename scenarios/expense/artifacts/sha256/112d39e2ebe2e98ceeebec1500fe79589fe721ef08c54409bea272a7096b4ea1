@@ -1,0 +1,45 @@
+{
+  "task_id": "T09",
+  "goal": "영수증 올리기·청구 화면 흐름과 와이어프레임을 만든다",
+  "input_slots": [
+    {
+      "name": "requirements",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "screen_flow",
+      "kind": "문서",
+      "required": true
+    },
+    {
+      "name": "ui_mock",
+      "kind": "문서",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T09-C1",
+      "description": "화면 흐름이 요구사항 ID를 모두 덮는다",
+      "required": true,
+      "method": "auto",
+      "slot": "screen_flow"
+    },
+    {
+      "condition_id": "T09-C2",
+      "description": "디자인 검토",
+      "required": true,
+      "method": "human",
+      "slot": "ui_mock"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "회계 연동 화면",
+  "write_scope": [
+    "docs/screens.md",
+    "docs/ui-mock.md"
+  ],
+  "status": "확정"
+}

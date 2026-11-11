@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
-// 시안은 데이터 묶음(prototype/public/data → scenarios/roombook)을 fetch로 읽는다.
+// 시안은 데이터 묶음(prototype/public/data/<이름> → scenarios/<이름>)을 fetch로 읽는다. 묶음은 ?data=<이름>으로 고른다.
 // base를 './'로 두어 빌드 결과(dist/)를 어느 경로에 올려도(Artifact, 이후 catena ui) 그대로 열린다.
 export default defineConfig({
   root: 'prototype',

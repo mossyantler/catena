@@ -22,9 +22,11 @@ npm run build                                                    # 게시용 빌
 npm run preview                                                  # dist/ 보기: http://127.0.0.1:5181
 node --test --test-name-pattern="E4" tools/fold.test.ts          # 시험 하나
 node tools/fold.ts scenarios/roombook [--at N]                   # 읽기 모델을 글로 출력(N = 재생 위치)
-node tools/catena.ts status [--at N] [--json]                    # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity
-node scenarios/roombook.build.ts                                 # 시나리오 묶음 다시 만들기
+node tools/catena.ts status [--bundle 폴더] [--at N] [--json]    # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity
+node scenarios/roombook.build.ts                                 # 시나리오 묶음 다시 만들기(expense.build.ts도 같다)
 ```
+
+시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 `roombook`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따른다.
 
 코드를 바꾼 뒤 `npm test`, `npm run check`, `npm run lint`를 실행한다. 화면을 바꿨으면 데스크톱(1440px)과 폰(375px), 밝은 모드와 어두운 모드에서 확인한다. 화면 자체의 자동 시험은 없고, 공정표 배치는 `prototype/src/lib/graph.test.ts`가 시험한다. `.claude/launch.json`의 `prototype`(개발 서버)과 `dist`(빌드 결과) 설정이 미리보기 서버를 띄운다.
 
@@ -36,7 +38,8 @@ node scenarios/roombook.build.ts                                 # 시나리오 
 - `dataset.json`: 묶음 선언. `dataset_id`, `origin`(`simulated`/`recorded`/`live`), `schema_version`, `default_position`(기본 재생 위치)이 있다.
 - `events.jsonl`: ExecutionEvent 한 줄에 하나. `seq`는 1부터 빈틈없이 이어진다.
 - `artifacts/sha256/<hex>`: 원문(transcript 발췌, diff, 검사 로그). 이벤트 payload는 원문을 `{kind: 'artifact', id: 'sha256:<hex>'}`로 참조하고, 불러올 때 해시를 다시 계산한다.
-- `prototype/public/data`는 `../../scenarios/roombook`을 가리키는 심볼릭 링크다. 빌드하면 `dist/data/`에 실제 파일로 복사된다.
+- 묶음은 둘이다. `roombook`(회의실 예약, 기준 시나리오)과 `expense`(사내 경비 정산, 사용자 시험용). 둘은 구조가 같고 내용과 Task 번호가 다르다(대응표는 `docs/user-test.md`).
+- `prototype/public/data/<이름>`은 `scenarios/<이름>`을 가리키는 심볼릭 링크다. 묶음을 더하면 링크도 더한다. 빌드하면 `dist/data/<이름>/`에 실제 파일로 복사된다.
 
 **`tools/readmodel.ts`: 규칙의 유일한 출처**
 - `checkStream`: 중복, 순서, 출처 선언을 확인한다(E1, E10).
@@ -50,18 +53,21 @@ node scenarios/roombook.build.ts                                 # 시나리오 
 - 상태 판단 로직은 넣지 않고 읽기 모델 질의 결과만 그린다. 상태 이름과 색의 대응만 `lib/status.ts`에 있다.
 - 불러오기 순서: 묶음 전체를 끝까지 접어 검사하고, 통과하면 기본 재생 위치로 다시 접는다(`App.tsx`, `lib/data.ts`, `lib/store.tsx`). 검사에 실패하면 화면을 그리지 않는다. 네트워크 오류는 "불러오기 실패", 규칙 위반은 "검사 실패"로 나눠 표시한다.
 - 화면은 해시 라우팅이다: `#overview`, `#wbs[-id]`, `#dag[-id]`, `#task-<id>`, `#agent-<id>`, `#approval-<id>`, `#phase`, `#milestone`(`lib/route.ts`, 화면은 `pages/`).
+- 묶음 고르기(`?data=`)와 비교 기준 화면(`?mode=baseline`, `pages/baseline.tsx`)은 주소 쿼리로 정한다(`lib/data.ts`). 비교 기준 화면에는 Catena의 해석(대표 상태, 차단 이유, 공정표, 집계, 상태 색)을 넣지 않는다.
 - 공정표 세 가지(WBS 공정표, 전체 의존, Agent Graph)는 `components/flow-graph.tsx`(React Flow)가 그리고, 배치는 `lib/graph.ts`(ELK)가 정한다. 노드는 끌 수 없다. 전체 의존은 후행 노드에 엣지마다 입력 포트를 줘서 슬롯 숫자가 겹치지 않게 한다(`labels: 'head'`). ELK(1.6MB)는 그래프 화면에서만 따로 불러온다.
 - shadcn 부품은 `components/ui/`에 있다. academic-assistant에서 가져왔고, 배지 variant만 공정 상태 색으로 바꿨다. 부품을 더할 때 shadcn CLI가 import 경로를 `"cn"`으로 잘못 쓰고 `cn` 패키지를 설치하는 일이 있었다. 더한 뒤 확인한다.
 - 디자인 규칙은 `DESIGN.md`에 있다. 화면을 바꾸기 전에 읽는다.
 
-**시나리오 생성기** (`scenarios/roombook.build.ts`)
+**시나리오 생성기** (`scenarios/roombook.build.ts`, `scenarios/expense.build.ts`, 공용 도구 `scenarios/sim.ts`)
 - 결정적이다. `event_id`는 `sha256(dataset:seq)`에서 만들고, 시각은 `at()`으로 정한다. `Date.now()`나 난수를 쓰지 않는다.
-- 실행하면 `scenarios/roombook/`을 지우고 새로 쓴다.
+- 실행하면 `scenarios/<이름>/`을 지우고 새로 쓴다.
+- `expense.build.ts`는 `roombook.build.ts`와 이벤트 순서까지 같은 모양으로 쓴다. 한쪽 구조를 바꾸면 다른 쪽도 같이 바꾼다.
 
 **시험과 시나리오는 맞물려 있다**
 - `fold.test.ts`는 roombook의 특정 상태(예: T07 `실행 중`, T03 `decision` 대기)를 단정한다.
 - 거부 시험은 묶음을 임시 폴더에 복사해 이벤트를 고친 뒤 실행한다.
-- 마지막 시험은 생성기를 그 자리에서 다시 실행해 `events.jsonl` 해시가 그대로인지 본다. 생성기를 고쳤다면 먼저 생성기를 실행해 묶음을 다시 만든 뒤 시험을 돌린다.
+- 재생성 시험은 두 생성기를 그 자리에서 다시 실행해 `events.jsonl` 해시가 그대로인지 본다. 생성기를 고쳤다면 먼저 생성기를 실행해 묶음을 다시 만든 뒤 시험을 돌린다.
+- 구조 시험은 ID 대응표(`TO_ROOMBOOK`)로 expense를 roombook ID로 바꿔, 두 묶음의 공정 구조(카드, 차단 이유, 엣지, 집계, 수정 반복, Agent Graph)가 같은지 본다.
 
 ## 명세 문서
 
@@ -76,7 +82,7 @@ node scenarios/roombook.build.ts                                 # 시나리오 
   - 「사용 형태와 실행 구조」: 구성 요소, 명령 계층, CLI 명령 예(C-12)
   - 「ExecutionEvent」: 이벤트 타입, 검사 규칙 E1~E11, v0.9 선택 필드(`node.started.profile` 등)
   - 13장 「Product MVP」: 기준 시나리오 요건, 인수 기준(11: CLI JSON과 화면 값 일치), 사용자 시험(Q1~Q6, Q8)
-  - 14장: 14-10 기록 데이터 출처(미결정), 14-11 화면 구현 방식(결정: 로컬 Web UI, React·Vite, React Flow·ELK)
+  - 14장: 14-10 기록 데이터 출처(명세는 미결정. 2026-11-11 사용자 결정: 사용자 시험은 시뮬레이션만. `docs/user-test.md`, 다음 개정에 반영), 14-11 화면 구현 방식(결정: 로컬 Web UI, React·Vite, React Flow·ELK)
 
 ## 설계 판단 기준 (명세 「제품 정의」, 0-7)
 
@@ -91,5 +97,5 @@ node scenarios/roombook.build.ts                                 # 시나리오 
 
 시안은 비공개 Artifact로 게시돼 있다: https://claude.ai/artifact/HRCwfqrbETHVE4FrSfL4Sn
 - 갱신할 때는 `npm run build` 뒤 이 URL로 다시 게시한다.
-- 페이지는 `dist/index.html`이다. 함께 올리는 파일은 `dist/assets/*`(해시 붙은 JS·CSS·글꼴), `data/dataset.json`, `data/events.jsonl`, `data/artifacts/sha256/*`다. 빌드마다 assets 이름이 바뀌므로 옛 이름은 `null`로 지운다.
+- 페이지는 `dist/index.html`이다. 함께 올리는 파일은 `dist/assets/*`(해시 붙은 JS·CSS·글꼴), 묶음마다 `data/<이름>/dataset.json`, `data/<이름>/events.jsonl`, `data/<이름>/artifacts/sha256/*`다. 옛 경로(`data/dataset.json` 등)는 `null`로 지운다. 빌드마다 assets 이름이 바뀌므로 옛 이름은 `null`로 지운다.
 - 확장자 없는 원문 파일과 `events.jsonl`은 contentType을 정확히 `"text/plain"`으로 지정해야 게시된다.

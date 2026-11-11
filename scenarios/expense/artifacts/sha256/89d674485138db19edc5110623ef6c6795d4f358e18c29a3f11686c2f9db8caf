@@ -1,0 +1,5 @@
+$ npm run migrate:check
+apply 000_employees ... ok
+apply 001_init ... ok
+check references ... ok
+PASS

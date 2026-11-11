@@ -1,0 +1,55 @@
+{
+  "task_id": "T14",
+  "goal": "인수된 서버와 화면을 파이프라인으로 운영 서버에 반영한다",
+  "input_slots": [
+    {
+      "name": "receipt_test_report",
+      "required": true
+    },
+    {
+      "name": "limit_test_report",
+      "required": true
+    },
+    {
+      "name": "claim_ui",
+      "required": true
+    },
+    {
+      "name": "upload_ui",
+      "required": true
+    },
+    {
+      "name": "pipeline",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "release",
+      "kind": "배포 기록",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T14-C1",
+      "description": "스테이징 반영 뒤 스모크 시험 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "release"
+    },
+    {
+      "condition_id": "T14-C2",
+      "description": "운영 반영 승인",
+      "required": true,
+      "method": "human",
+      "slot": "release"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "무중단 배포",
+  "write_scope": [
+    "deploy/"
+  ],
+  "status": "확정"
+}

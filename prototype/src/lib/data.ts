@@ -14,7 +14,12 @@ export class LoadError extends Error {
   }
 }
 
-const BASE = 'data/'
+// 묶음은 주소 쿼리로 고른다: ?data=expense → data/expense/. 없으면 기준 시나리오(roombook).
+const PARAMS = new URLSearchParams(window.location.search)
+const NAME = PARAMS.get('data') ?? 'roombook'
+const BASE = /^[a-z0-9-]+$/.test(NAME) ? `data/${NAME}/` : ''
+/** 사용자 시험의 비교 기준 화면(?mode=baseline): Task 목록과 실행 로그만 보여 준다. */
+export const BASELINE = PARAMS.get('mode') === 'baseline'
 
 // 네트워크 실패는 몇 번 다시 시도하고, 그래도 안 되면 검사 실패와 구분해 알린다.
 async function get(url: string, tries = 3) {
@@ -36,9 +41,11 @@ export const refCheckOf = (files: Map<string, RawFile>) => (r: RM.Ref) => {
 }
 
 export async function loadBundle(): Promise<Bundle> {
+  if (!BASE) throw new LoadError('불러오기 실패', `묶음 이름은 영문 소문자·숫자·하이픈만 씁니다: ${NAME}`)
   const mres = await get(BASE + 'dataset.json')
-  if (!mres.ok) throw new LoadError('불러오기 실패', '데이터 묶음(dataset.json)을 찾지 못했습니다.')
-  const manifest: Manifest = await mres.json()
+  // 없는 묶음이면 개발 서버가 404 대신 index.html을 돌려주므로 JSON이 아닌 것도 '찾지 못함'으로 본다.
+  const manifest: Manifest | undefined = mres.ok ? await mres.json().catch(() => undefined) : undefined
+  if (!manifest) throw new LoadError('불러오기 실패', `데이터 묶음 ${NAME}(dataset.json)을 찾지 못했습니다.`)
   const text = await (await get(BASE + 'events.jsonl')).text()
   try {
     const events = RM.checkStream(manifest, text.split('\n').filter(Boolean))
