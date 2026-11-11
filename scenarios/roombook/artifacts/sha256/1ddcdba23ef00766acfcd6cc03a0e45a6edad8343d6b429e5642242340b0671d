@@ -1,0 +1,14 @@
+--- a/docs/auth-api.yaml
++++ b/docs/auth-api.yaml
+@@ -0,0 +1,4 @@
++openapi: 3.1.0
++paths:
++  /login: { post: { summary: 로그인 } }
++  /token/refresh: { post: { summary: 토큰 갱신 } }
+--- a/docs/token-policy.md
++++ b/docs/token-policy.md
+@@ -0,0 +1,4 @@
++# 토큰 정책
++- 액세스 토큰 15분, 갱신 토큰 30분 (R-02)
++- 갱신 시 갱신 토큰도 교체한다
++- 만료 판정은 서버 시각 기준, 오차 허용 없음

@@ -1,0 +1,43 @@
+{
+  "task_id": "T10",
+  "goal": "와이어프레임대로 예약 화면을 구현한다",
+  "input_slots": [
+    {
+      "name": "ui_mock",
+      "required": true
+    },
+    {
+      "name": "reservation_api",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "reservation_ui",
+      "kind": "코드",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T10-C1",
+      "description": "예약 화면 컴포넌트 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "reservation_ui"
+    },
+    {
+      "condition_id": "T10-C2",
+      "description": "화면 검토",
+      "required": true,
+      "method": "human",
+      "slot": "reservation_ui"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "관리자 화면",
+  "write_scope": [
+    "web/src/reservation/"
+  ],
+  "status": "확정"
+}

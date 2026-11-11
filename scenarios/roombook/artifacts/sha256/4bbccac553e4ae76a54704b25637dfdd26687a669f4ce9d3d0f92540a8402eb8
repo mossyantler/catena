@@ -1,0 +1,5 @@
+$ npm test -- tests/api/reservations.test.ts
+✓ 예약을 만든다
+✓ 회의실별로 조회한다
+✓ 예약을 취소한다
+PASS 3 of 3

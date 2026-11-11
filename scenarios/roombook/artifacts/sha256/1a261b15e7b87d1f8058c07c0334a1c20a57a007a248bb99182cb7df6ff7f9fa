@@ -1,0 +1,5 @@
+--- a/db/migrations/001_init.up.sql
++++ b/db/migrations/001_init.up.sql
+@@ -0,0 +1,2 @@
++CREATE TABLE rooms (id INTEGER PRIMARY KEY, name TEXT NOT NULL, capacity INTEGER NOT NULL);
++CREATE TABLE reservations (id INTEGER PRIMARY KEY, room_id INTEGER REFERENCES rooms(id), starts_at TEXT, ends_at TEXT, owner TEXT);

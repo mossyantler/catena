@@ -1,0 +1,39 @@
+{
+  "task_id": "T08",
+  "goal": "예약 충돌 시나리오를 테스트로 만든다",
+  "input_slots": [
+    {
+      "name": "reservation_api",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "conflict_test_report",
+      "kind": "테스트 보고서",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T08-C1",
+      "description": "충돌 시나리오 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "conflict_test_report"
+    },
+    {
+      "condition_id": "T08-C2",
+      "description": "테스트 범위 검토",
+      "required": true,
+      "method": "human",
+      "slot": "conflict_test_report"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "성능 시험",
+  "write_scope": [
+    "tests/reservations/"
+  ],
+  "status": "확정"
+}

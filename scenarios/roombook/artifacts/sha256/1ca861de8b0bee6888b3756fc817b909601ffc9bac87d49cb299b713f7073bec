@@ -1,0 +1,2 @@
+{"role":"reviewer-1","text":"POST /reservations 응답 필드가 계약과 같다."}
+{"role":"reviewer-1","text":"GET /reservations는 14일 범위(R-03)를 한 번에 돌려준다. 페이지네이션이 필요하다."}

@@ -1,0 +1,43 @@
+{
+  "task_id": "T05",
+  "goal": "로그인부터 세션 만료까지 통합 테스트를 작성하고 통과시킨다",
+  "input_slots": [
+    {
+      "name": "token_service",
+      "required": true
+    },
+    {
+      "name": "session_service",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "auth_test_report",
+      "kind": "테스트 보고서",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T05-C1",
+      "description": "로그인 통합 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "auth_test_report"
+    },
+    {
+      "condition_id": "T05-C2",
+      "description": "테스트 범위 검토",
+      "required": true,
+      "method": "human",
+      "slot": "auth_test_report"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "부하 시험",
+  "write_scope": [
+    "tests/auth/"
+  ],
+  "status": "확정"
+}

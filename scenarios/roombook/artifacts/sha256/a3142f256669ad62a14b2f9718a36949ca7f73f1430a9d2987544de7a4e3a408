@@ -1,0 +1,39 @@
+{
+  "task_id": "T03",
+  "goal": "토큰 정책에 맞춰 액세스·갱신 토큰을 발급한다",
+  "input_slots": [
+    {
+      "name": "token_policy",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "token_service",
+      "kind": "코드",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T03-C1",
+      "description": "토큰 발급·만료 단위 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "token_service"
+    },
+    {
+      "condition_id": "T03-C2",
+      "description": "코드 검토",
+      "required": true,
+      "method": "human",
+      "slot": "token_service"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "세션 저장소",
+  "write_scope": [
+    "src/auth/token.ts"
+  ],
+  "status": "확정"
+}

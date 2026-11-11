@@ -1,0 +1,2 @@
+{"role":"tool","text":"Edit src/api/reservations.ts (+48 -0)"}
+{"role":"worker-1","text":"생성·조회·취소 핸들러를 추가했다. 조회는 회의실별로 거른다."}

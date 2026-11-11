@@ -1,0 +1,5 @@
+--- a/db/migrations/001_init.down.sql
++++ b/db/migrations/001_init.down.sql
+@@ -0,0 +1,2 @@
++DROP TABLE reservations;
++DROP TABLE rooms;

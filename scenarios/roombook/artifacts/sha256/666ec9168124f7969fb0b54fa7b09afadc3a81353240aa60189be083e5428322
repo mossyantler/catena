@@ -1,0 +1,6 @@
+$ npm test -- tests/auth/token.test.ts
+✓ 액세스 토큰을 발급한다
+✓ 갱신 토큰을 교체한다
+✗ 만료 시각과 같은 순간에는 만료로 본다 (시도 1)
+  expected expired(t, t.expiresAt) to be true, got false
+FAIL 1 of 3

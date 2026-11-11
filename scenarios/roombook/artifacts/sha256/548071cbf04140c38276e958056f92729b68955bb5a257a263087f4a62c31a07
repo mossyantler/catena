@@ -1,0 +1,4 @@
+$ npm run migrate:check
+apply 001_init ... ok
+rollback 001_init ... ok
+PASS

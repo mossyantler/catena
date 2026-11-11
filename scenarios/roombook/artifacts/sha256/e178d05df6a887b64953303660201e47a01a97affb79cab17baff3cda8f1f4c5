@@ -1,0 +1,3 @@
+$ npm run check:coverage -- docs/screens.md
+R-01..R-05 모두 화면 흐름에 연결됨 (R-06 범위 제외)
+PASS

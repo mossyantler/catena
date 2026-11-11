@@ -1,0 +1,51 @@
+{
+  "task_id": "T07",
+  "goal": "예약 생성·조회·취소 API와 시간 충돌 검사를 구현한다",
+  "input_slots": [
+    {
+      "name": "schema",
+      "required": true
+    },
+    {
+      "name": "screen_flow",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "reservation_api",
+      "kind": "코드",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T07-C1",
+      "description": "예약 CRUD 단위 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "reservation_api"
+    },
+    {
+      "condition_id": "T07-C2",
+      "description": "예약 시간 충돌 테스트 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "reservation_api"
+    },
+    {
+      "condition_id": "T07-C3",
+      "description": "API 계약 일치 검토",
+      "required": true,
+      "method": "human",
+      "slot": "reservation_api"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "알림 발송",
+  "write_scope": [
+    "src/api/reservations.ts",
+    "src/domain/conflict.ts"
+  ],
+  "status": "확정"
+}

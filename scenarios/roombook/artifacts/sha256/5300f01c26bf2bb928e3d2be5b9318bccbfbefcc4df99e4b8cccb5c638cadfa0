@@ -1,0 +1,45 @@
+{
+  "task_id": "T06",
+  "goal": "회의실·예약 테이블과 마이그레이션을 설계한다",
+  "input_slots": [
+    {
+      "name": "requirements",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "schema",
+      "kind": "SQL",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T06-C1",
+      "description": "마이그레이션 적용·되돌리기 검사 통과",
+      "required": true,
+      "method": "auto",
+      "slot": "schema"
+    },
+    {
+      "condition_id": "T06-C2",
+      "description": "스키마 검토",
+      "required": true,
+      "method": "human",
+      "slot": "schema"
+    },
+    {
+      "condition_id": "T06-C3",
+      "description": "요구사항 R-03~R-05의 데이터를 모두 담는다",
+      "required": true,
+      "method": "human"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "통계용 테이블",
+  "write_scope": [
+    "db/migrations/"
+  ],
+  "status": "확정"
+}

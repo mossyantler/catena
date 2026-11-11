@@ -1,0 +1,52 @@
+{
+  "task_id": "T02",
+  "goal": "로그인·토큰 갱신 API와 토큰 정책을 설계한다",
+  "input_slots": [
+    {
+      "name": "requirements",
+      "required": true
+    }
+  ],
+  "output_slots": [
+    {
+      "name": "auth_api_spec",
+      "kind": "OpenAPI",
+      "required": true
+    },
+    {
+      "name": "token_policy",
+      "kind": "문서",
+      "required": true
+    }
+  ],
+  "conditions": [
+    {
+      "condition_id": "T02-C1",
+      "description": "OpenAPI 문서가 스키마 검사를 통과한다",
+      "required": true,
+      "method": "auto",
+      "slot": "auth_api_spec"
+    },
+    {
+      "condition_id": "T02-C2",
+      "description": "보안 검토",
+      "required": true,
+      "method": "human",
+      "slot": "auth_api_spec"
+    },
+    {
+      "condition_id": "T02-C3",
+      "description": "토큰 만료·갱신 규칙이 명시돼 있다",
+      "required": true,
+      "method": "human",
+      "slot": "token_policy"
+    }
+  ],
+  "version": 1,
+  "out_of_scope": "외부 SSO 연동",
+  "write_scope": [
+    "docs/auth-api.yaml",
+    "docs/token-policy.md"
+  ],
+  "status": "확정"
+}
