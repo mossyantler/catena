@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkStream, foldAll, card, waitsOf, edgesAt, CLOSED, type Ref } from './readmodel.ts';
+import { checkStream, foldAll, card, waitsOf, edgesAt, CLOSED, type Ref, type Model } from './readmodel.ts';
 
 export { card, edgesAt } from './readmodel.ts';
 
@@ -29,9 +29,12 @@ function main() {
     process.exit(1);
   }
   const { manifest, model: m, position, total } = r;
-  const out: string[] = [];
-  out.push(`[${manifest.origin}] ${manifest.dataset_id} · 재생 위치 ${position} / ${total} · 검사 통과`);
-  out.push(`${m.project.name}`);
+  console.log([`[${manifest.origin}] ${manifest.dataset_id} · 재생 위치 ${position} / ${total} · 검사 통과`, ...describe(m)].join('\n'));
+}
+
+// 읽기 모델을 글로 쓴다: WBS별 Task 카드, 최상위 공정표의 엣지, 사용자 개입 목록, Milestone, Phase별 상태
+export function describe(m: Model): string[] {
+  const out: string[] = [`${m.project.name}`];
   const walk = (parent: string | undefined, depth: number) => {
     const kids = [...m.nodes.values()].filter(n => n.parent === parent).sort((a, b) => a.order - b.order);
     for (const n of kids) {
@@ -80,7 +83,7 @@ function main() {
     for (const t of ts) { const s = card(m, t.id).rep; counts.set(s, (counts.get(s) ?? 0) + 1); }
     out.push(`  ${ph.name}: ${[...counts].map(([k, v]) => `${k} ${v}`).join(', ') || '-'}`);
   }
-  console.log(out.join('\n'));
+  return out;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();

@@ -58,7 +58,8 @@ export function TaskPage({ id }: { id: string }) {
 }
 
 function TaskDetail({ id }: { id: string }) {
-  const { model, node } = useCatena()
+  const { model, node, bundle } = useCatena()
+  const hand = bundle.accepted?.find((a) => a.task_id === id) // 계획 파일의 사람 인수 기록
   const n = node(id)
   const c = model.contracts.get(id)
   const { c: card } = useCard(id)
@@ -147,7 +148,7 @@ function TaskDetail({ id }: { id: string }) {
             return (
               <TableRow key={cd.condition_id}>
                 <TableCell><span className="font-mono">{cd.condition_id}</span></TableCell>
-                <TableCell className="whitespace-normal">{cd.description}</TableCell>
+                <TableCell className="min-w-48 whitespace-normal">{cd.description}</TableCell>
                 <TableCell><span className="font-mono">{cd.slot ?? 'Task 전체'}</span></TableCell>
                 <TableCell>{cd.method === 'auto' ? '자동 검사' : '사람 승인'}</TableCell>
                 <TableCell>
@@ -160,6 +161,13 @@ function TaskDetail({ id }: { id: string }) {
                       <span className="font-mono text-xs">{last.evidence_id}</span>
                       <RawButton refId={last.raw_log_ref} title={`${last.evidence_id} 검사 로그`} label="로그" />
                       {evs.length > 1 ? <span className="text-xs text-muted-foreground">(시도 {evs.length}회)</span> : null}
+                    </span>
+                  ) : hand?.evidence[cd.condition_id] ? (
+                    <span className="block min-w-60 whitespace-normal">
+                      {hand.evidence[cd.condition_id]}
+                      <span className="block text-xs text-muted-foreground">
+                        사람 인수 기록 · {hand.approved_at} · {hand.channel}
+                      </span>
                     </span>
                   ) : cd.method === 'auto' ? (
                     '증거 없음'

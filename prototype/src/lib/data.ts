@@ -1,9 +1,12 @@
 // 데이터 묶음(data/) 불러오기. 원문은 받을 때 해시를 다시 계산한다.
 import * as RM from '@/lib/rm'
+import * as PF from '../../../tools/planfold.ts'
 
-export type Manifest = { dataset_id: string; origin: string; schema_version: number; default_position?: number; description?: string }
+/** origin 'plan'은 Catena 제작 계획이다: plan·accepted가 가리키는 계획 파일과 사람 인수 기록을 읽는다(events.jsonl 없음). */
+export type Manifest = { dataset_id: string; origin: string; schema_version: number; default_position?: number; description?: string; plan?: string; accepted?: string }
 export type RawFile = { ok: true; text: string } | { ok: false; err: string }
-export type Bundle = { manifest: Manifest; events: RM.Event[]; files: Map<string, RawFile>; total: number }
+/** accepted·accept: 계획 파일의 사람 인수 기록. 이벤트가 아니므로(0-11) 접은 모델에 따로 더한다. */
+export type Bundle = { manifest: Manifest; events: RM.Event[]; files: Map<string, RawFile>; total: number; accepted?: any[]; accept?: (m: RM.Model) => void }
 
 /** 네트워크 오류는 '불러오기 실패', 규칙 위반은 '검사 실패'로 나눠 보여 준다. */
 export class LoadError extends Error {
@@ -46,6 +49,7 @@ export async function loadBundle(): Promise<Bundle> {
   // 없는 묶음이면 개발 서버가 404 대신 index.html을 돌려주므로 JSON이 아닌 것도 '찾지 못함'으로 본다.
   const manifest: Manifest | undefined = mres.ok ? await mres.json().catch(() => undefined) : undefined
   if (!manifest) throw new LoadError('불러오기 실패', `데이터 묶음 ${NAME}(dataset.json)을 찾지 못했습니다.`)
+  if (manifest.origin === 'plan') return loadPlan(manifest)
   const text = await (await get(BASE + 'events.jsonl')).text()
   try {
     const events = RM.checkStream(manifest, text.split('\n').filter(Boolean))
@@ -64,6 +68,27 @@ export async function loadBundle(): Promise<Bundle> {
     return { manifest, events, files, total: events.length }
   } catch (err) {
     if (err instanceof LoadError) throw err
+    throw new LoadError('검사 실패', (err as Error).message)
+  }
+}
+
+async function json(file?: string) {
+  const res = file ? await get(BASE + file) : undefined
+  const v = res?.ok ? await res.json().catch(() => undefined) : undefined
+  if (!v) throw new LoadError('불러오기 실패', `${BASE}${file ?? '(파일 이름 없음)'}을(를) 찾지 못했습니다.`)
+  return v
+}
+
+// Catena 제작 계획: tools/plan.ts와 같은 코드(planfold.ts)로 접는다. 계약 원문의 해시는 미리 계산해 둔다.
+async function loadPlan(manifest: Manifest): Promise<Bundle> {
+  const [plan, accepted] = await Promise.all([json(manifest.plan), json(manifest.accepted)])
+  try {
+    const texts = [...PF.contractTexts(plan).values()]
+    const digest = new Map(await Promise.all(texts.map(async (t) => [t, hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))] as const)))
+    const { events, contractHash } = PF.foldPlan(plan, accepted, (t) => digest.get(t)!)
+    const files = new Map<string, RawFile>([...digest].map(([text, h]) => [h, { ok: true, text }]))
+    return { manifest, events, files, total: events.length, accepted, accept: (m) => PF.acceptAll(m, accepted, contractHash) }
+  } catch (err) {
     throw new LoadError('검사 실패', (err as Error).message)
   }
 }

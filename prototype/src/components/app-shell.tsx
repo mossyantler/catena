@@ -32,7 +32,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import * as RM from '@/lib/rm'
 import { tabOf, type Route } from '@/lib/route'
-import { reworkText, when } from '@/lib/status'
+import { originLabel, reworkText, when } from '@/lib/status'
 import { useCatena } from '@/lib/store'
 
 const NAV = [
@@ -301,16 +301,27 @@ function Origin() {
   const m = bundle.manifest
   if (!sim) return null
   const last = bundle.events[pos - 1]
+  const badge = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="wait" tabIndex={0}>
+          {originLabel(m.origin)} · {m.dataset_id}
+        </Badge>
+      </TooltipTrigger>
+      {m.description ? <TooltipContent className="max-w-sm">{m.description}</TooltipContent> : null}
+    </Tooltip>
+  )
+  // 계획 파일은 실행 기록이 없어 재생 위치를 두지 않는다. 인수는 이벤트가 아니라 사용자가 대화에서 승인한 기록이다(0-11).
+  if (m.origin === 'plan')
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        {badge}
+        <span>실행 기록 없음 · 사람 인수 기록 {bundle.accepted?.length ?? 0}건 (작업은 Catena 통제 밖의 Coding Agent 세션)</span>
+      </div>
+    )
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge variant="wait" tabIndex={0}>
-            {m.origin === 'simulated' ? '시뮬레이션 데이터' : '기록 재생'} · {m.dataset_id}
-          </Badge>
-        </TooltipTrigger>
-        {m.description ? <TooltipContent className="max-w-sm">{m.description}</TooltipContent> : null}
-      </Tooltip>
+      {badge}
       {/* 폰에서는 막대가 줄 하나를 통째로 쓴다(남은 자리에 끼우면 화면 밖으로 넘친다). */}
       <span className="flex min-w-0 grow basis-full items-center gap-3 sm:basis-auto sm:max-w-xl">
         <label htmlFor="replay" className="shrink-0">

@@ -14,6 +14,8 @@ export default defineConfig({
   },
   // ELK(elk.bundled.js 1.6MB)는 그래프 화면에서만 따로 불러오는 한 덩어리라 경고 기준을 그보다 크게 둔다.
   build: { outDir: '../dist', emptyOutDir: true, chunkSizeWarningLimit: 1800 },
-  server: { host: '127.0.0.1', port: 5180, strictPort: true },
+  // 폰에서 볼 때는 tailscale serve가 tailnet 안에서 HTTPS로 넘겨준다(CLAUDE.md 「명령」). 서버는 127.0.0.1에만 열리므로
+  // .ts.net 이름을 허용해도 tailnet 밖에서는 닿지 않는다. preview.allowedHosts는 이 값을 그대로 쓴다.
+  server: { host: '127.0.0.1', port: 5180, strictPort: true, allowedHosts: ['.ts.net'] },
   preview: { host: '127.0.0.1', port: 5181, strictPort: true },
 })
