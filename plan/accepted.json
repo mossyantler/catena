@@ -65,5 +65,15 @@
     },
     "approved_at": "2026-11-12",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T15",
+    "contract": "sha256:7ceba91cadddce10271e94c80deb3233b4a31252eb55f47f4bc80dee39523ea1",
+    "evidence": {
+      "T15-C1": "사용자가 대화에서 승인(\"진행해\"). 검토 대상: 폰으로 받은 core_spec_v0.10.md. 0-5·0-11·9-8 재작성, Hard Invariant·A-4·A-7·샌드박스·버전 재검증 폐지, 공정 규칙 유지, Engine MVP 착수 순서와 인수 기준 13개, 「v0.9.2 대비 변경」 절과 부록 대조표. 결정으로 생긴 위험(같은 사용자 권한의 Agent가 승인을 흉내 냄)은 14-15로 Engine MVP 승인(T22) 전에 정하기로 함",
+      "T15-C2": "사용자가 대화에서 승인(\"진행해\"). 검토 대상: 폰으로 받은 runner_spec_v0.4.md(343줄 → 143줄). Agent 띄우기(사용자 설정 그대로, 권한 모드는 Project 설정), stream-json 정규화, 프로세스 그룹, 인증 정책만 남김. runner_security_spec_v0.3은 이력"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
   }
 ]
