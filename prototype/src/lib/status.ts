@@ -29,6 +29,9 @@ export const EXECUTOR: Record<string, string> = { agent: 'Agent', code: '검사 
 export const waitHref = (taskId: string, w: Wait) =>
   w.type === 'approval' ? `#approval-${w.source}` : w.type === 'dependency' && w.source ? `#task-${w.source}` : `#task-${taskId}`
 
+/** 데이터 출처 표시. plan은 Catena 제작 계획(계획 파일과 사람 인수 기록)이다. */
+export const originLabel = (origin: string) => ({ simulated: '시뮬레이션 데이터', recorded: '기록 재생', plan: '계획 파일' })[origin] ?? origin
+
 export const when = (iso?: string) => (iso ? `${+iso.slice(5, 7)}월 ${+iso.slice(8, 10)}일 ${iso.slice(11, 16)}` : '')
 export const hm = (iso?: string) => (iso ? iso.slice(11, 16) : '')
 

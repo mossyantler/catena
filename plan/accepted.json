@@ -1,0 +1,69 @@
+[
+  {
+    "task_id": "T01",
+    "contract": "sha256:419a8efa6705ff368c37aac487c4d6f87e012121c417e7eee05c0791695c0a0e",
+    "evidence": {
+      "T01-C1": "2026-11-11 작업 트리(commit 3179127 기준)에서 npm test 20개 통과. 검사 규칙 시험(기준 시나리오, 재생 위치)과 거부 시험(E1, E4, E6, E7, E8, E9) 통과"
+    },
+    "approved_at": "2026-11-11",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T02",
+    "contract": "sha256:491a0d644ad4cc1fd65aac66b2da050f6df247a2191c1610685ec66e208ca786",
+    "evidence": {
+      "T02-C1": "2026-11-11 작업 트리(commit 3179127 기준)에서 npm test 20개 통과. \"같은 생성기를 다시 돌리면 같은 이벤트가 나온다\"(재생성), \"두 번째 시나리오는 검사를 통과하고 roombook과 구조가 같다\"(구조) 통과",
+      "T02-C2": "사용자가 대화에서 승인(\"1~5 인수해\"). 검토 대상: scenarios/roombook, scenarios/expense와 이를 그린 시안 화면"
+    },
+    "approved_at": "2026-11-11",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T03",
+    "contract": "sha256:0859e680f3fc9630a5fded8c230ced1103d5d7104852798f0b43bf59d2510cbc",
+    "evidence": {
+      "T03-C1": "2026-11-11 작업 트리(commit 3179127 기준)에서 npm test 20개 통과. \"C-12: CLI의 JSON 값은 화면이 쓰는 읽기 모델 질의 값과 같다\" 통과"
+    },
+    "approved_at": "2026-11-11",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T04",
+    "contract": "sha256:b553b5abc79d52d9cf8315f09a977e20b22a9992cf2b03a1175dd8a7b8622bdc",
+    "evidence": {
+      "T04-C1": "2026-11-11 작업 트리(commit 3179127 기준)에서 npm test 20개 통과(공정표 배치 시험 5개 포함), npm run check 통과, npm run lint 오류 없음(기존 경고만)",
+      "T04-C2": "사용자가 대화에서 승인(\"1~5 인수해\"). 검토 대상: 게시된 시안(Artifact HRCwfqrbETHVE4FrSfL4Sn)과 개발 서버 화면, 데스크톱·폰과 밝은·어두운 모드는 Agent가 같은 날 확인. 알려진 문제: 폰 Task 상세에서 제목이 버튼에 밀려 좁게 줄바꿈된다"
+    },
+    "approved_at": "2026-11-11",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T05",
+    "contract": "sha256:3e91bde284436b38be5b106a313d31d3f21ba46cc08edf26ae23346d0a581c6e",
+    "evidence": {
+      "T05-C1": "사용자가 대화에서 승인(\"1~5 인수해\"). 검토 대상: docs/user-test.md(과제, 정답, 기준 경로, 배정표), ?data=expense와 ?mode=baseline 화면"
+    },
+    "approved_at": "2026-11-11",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T09",
+    "contract": "sha256:75c9e63a7a354eaae9a1220e0bd6c1c4b43e52645fa0a7e2885afe71691af05a",
+    "evidence": {
+      "T09-C1": "2026-11-11 작업 트리(commit 3179127 기준)에서 npm test 20개 통과(계획 시험 2개 포함), npm run check 통과, npm run lint 오류 없음. tools/plan.ts와 prototype/src/lib/data.ts가 모두 tools/planfold.ts를 불러 쓴다",
+      "T09-C2": "사용자가 대화에서 승인(\"인수해\"). 화면 확인 요청에 대한 답으로, Tailscale HTTPS(:5180)로 폰에서 ?data=catena를 열 수 있게 한 뒤 받았다. Agent는 같은 날 개발 서버와 빌드 결과에서 데스크톱·폰, 밝은·어두운 모드, 인수 근거 표시, 계약이 바뀐 인수 기록의 거부를 확인했다"
+    },
+    "approved_at": "2026-11-11",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T29",
+    "contract": "sha256:6c383c73f7888d032e38f7be426583e55f5e956b87e9d51a8ef8f9bece0df47b",
+    "evidence": {
+      "T29-C1": "사용자가 대화에서 승인(\"인수해\"). 검토 대상: dashboard_interaction_design.md 초안(폰으로 받은 파일), 4절 객체·상태별 조작표(WBS 노드, Task 대표 상태, 슬롯·완료 조건, Workflow 노드, Run, 대기 사유, 승인, Phase·Milestone)와 5절 단계별 요약",
+      "T29-C2": "사용자가 대화에서 승인(\"인수해\"). 검토 대상: dashboard_interaction_design.md 초안(폰으로 받은 파일), 2·3절 명세 근거와 설계 규칙 I1~I13, 8절 비교 도구 조사(채택 7·비채택 8, 출처 포함). 열린 질문 Q1~Q9와 Spike S1~S5는 결정하지 않은 채로 남김. 2차 출처 항목(Cursor 중지, Prefect 취소 정체, Argo 권한, Airflow 경합)은 결정 전에 재확인"
+    },
+    "approved_at": "2026-11-12",
+    "channel": "Claude Code 대화"
+  }
+]

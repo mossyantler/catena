@@ -1,0 +1,8 @@
+{
+  "dataset_id": "catena",
+  "origin": "plan",
+  "schema_version": 1,
+  "plan": "catena.plan.json",
+  "accepted": "accepted.json",
+  "description": "Catena 제작 계획(plan/catena.plan.json)과 사람 인수 기록(plan/accepted.json). 실행 기록은 없다. 작업은 Catena가 시작한 Run이 아닌 Coding Agent 세션에서 하고(0-11), 인수는 사용자가 대화에서 승인한 기록이다."
+}

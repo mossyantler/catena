@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import * as RM from '@/lib/rm'
-import { when } from '@/lib/status'
+import { originLabel, when } from '@/lib/status'
 import { useCatena } from '@/lib/store'
 
 // 원문 참조는 짧은 표시로 바꾸고, 줄 아래 원문 보기 버튼으로 연다.
@@ -31,7 +31,7 @@ export function BaselinePage() {
         description="계획에 적힌 Task와 실행 기록을 그대로 보여 줍니다."
         actions={
           <Badge variant="wait" title={m.description}>
-            {m.origin === 'simulated' ? '시뮬레이션 데이터' : '기록 재생'} · {m.dataset_id}
+            {originLabel(m.origin)} · {m.dataset_id}
           </Badge>
         }
       />
