@@ -32,7 +32,7 @@ function main() {
   console.log([
     `[계획 파일] plan/catena.plan.json · Task ${tasks.length}개 · 사람 인수 ${accepted.length}건 · 검사 통과`,
     '작업은 Catena가 시작하지 않은 Coding Agent 세션에서 한다(0-11). 인수는 사용자가 대화에서 승인한 기록이다(plan/accepted.json).',
-    `지금 착수할 수 있는 Task: ${ready.map(n => `${n.id} ${n.name}`).join(', ') || '없음'}`,
+    `지금 착수할 수 있는 Task: ${ready.map(n => `${n.id}: ${n.name}`).join(', ') || '없음'}`,
     '',
     ...describe(m),
   ].join('\n'));
