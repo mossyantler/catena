@@ -128,5 +128,14 @@
     },
     "approved_at": "2026-11-13",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T08",
+    "contract": "sha256:cfe56aa0ac6a1c456493795717d2eb07f76691749ebb3cd62b070eceaa5680cf",
+    "evidence": {
+      "T08-C1": "사용자가 대화에서 승인(\"인수해\"). 검토 대상: 폰으로 받은 docs/agent-cli-check.md. CLI JSON만 쓴 별도 Agent의 정답률 roombook 7/7, expense 7/7(합계 14/14, 오해 유형 없음), 과제별 대조표, JSON 개선 후보 10개(승인-조건 연결, 원문 보기, 후행·독립 질의, 시도 단위 등)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
   }
 ]
