@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 const decisionNames: Record<CopyDecision, string> = { draft: '검토 중', approved: '확정', keep: '현재 표현 유지', deferred: '보류' }
+// 검토하지 않았고, 정한 용어만으로 정해지지도 않은 항목
+const needsJudgment = (i: CopyItem, reviews: Record<string, CopyReview>) => !i.basis && (!reviews[i.id] || reviews[i.id].decision === 'draft')
 const fieldClass = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm'
 
 export default function CopyReviewPage() {
@@ -26,14 +28,14 @@ export default function CopyReviewPage() {
 function ReviewWorkspace({ initial }: { initial: CopyData }) {
   const [data, setData] = useState(initial)
   const [id, setId] = useState(() => initial.items.find(i => i.id === location.hash.slice(1))?.id
-    ?? initial.items.find(i => !initial.reviews[i.id] || initial.reviews[i.id].decision === 'draft')?.id ?? initial.items[0].id)
+    ?? initial.items.find(i => needsJudgment(i, initial.reviews))?.id ?? initial.items[0].id)
   const [category, setCategory] = useState('전체')
-  const [filter, setFilter] = useState('전체')
+  const [filter, setFilter] = useState('판단 필요')
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const categories = [...new Set(data.items.map(i => i.category))]
   const shown = data.items.filter(i => (category === '전체' || i.category === category)
-    && (filter === '전체' || (filter === '미검토' ? !data.reviews[i.id] || data.reviews[i.id].decision === 'draft' : data.reviews[i.id]?.decision === 'deferred'))
+    && (filter === '전체' || (filter === '판단 필요' ? needsJudgment(i, data.reviews) : filter === '미검토' ? !data.reviews[i.id] || data.reviews[i.id].decision === 'draft' : data.reviews[i.id]?.decision === 'deferred'))
     && `${i.original} ${i.suggested} ${i.id} ${data.reviews[i.id]?.text ?? ''}`.toLowerCase().includes(query.toLowerCase()))
   const item = data.items.find(i => i.id === id)!
   const index = shown.findIndex(i => i.id === id)
@@ -44,7 +46,7 @@ function ReviewWorkspace({ initial }: { initial: CopyData }) {
     <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 lg:px-8">
       <PageHeader eyebrow="Catena · 문구 검토" title="표현을 하나씩 다듬기" description="제안을 직접 고치거나 현재 표현을 유지할 수 있습니다. 저장한 첨삭은 다른 기기에서도 이어서 볼 수 있습니다." />
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-        <span>전체 {data.items.length}개 · 검토 완료 {reviewed}개 · 보류 {deferred}개</span>
+        <span>전체 {data.items.length}개 · 검토 완료 {reviewed}개 · 보류 {deferred}개 · 판단 필요 {data.items.filter(i => needsJudgment(i, data.reviews)).length}개</span>
       </div>
       <p className="text-xs text-muted-foreground">첨삭 기록은 별도 파일에 저장됩니다. 명세와 대시보드에는 아직 적용되지 않습니다. ‘확정’은 이 문구 검토에서의 선택입니다.</p>
       <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-3">
@@ -52,7 +54,7 @@ function ReviewWorkspace({ initial }: { initial: CopyData }) {
           <select className={fieldClass} value={category} onChange={e => setCategory(e.target.value)}><option>전체</option>{categories.map(c => <option key={c}>{c}</option>)}</select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">검토 상태
-          <select className={fieldClass} value={filter} onChange={e => setFilter(e.target.value)}><option>전체</option><option>미검토</option><option>보류</option></select>
+          <select className={fieldClass} value={filter} onChange={e => setFilter(e.target.value)}><option>판단 필요</option><option>전체</option><option>미검토</option><option>보류</option></select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">문구 검색
           <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="예: 인수, CLI, T03" />
@@ -123,6 +125,7 @@ function Editor({ item, review, index, total, previous, next, busy, setBusy, mov
           <div className="flex flex-col gap-2 rounded-lg border p-3"><p className="text-xs text-muted-foreground">처음 제안한 표현</p><p className="whitespace-pre-wrap break-words text-base">{item.suggested}</p></div>
         </div>
         <p className="text-sm text-muted-foreground">{item.context}</p>
+        {item.basis ? <p className="text-sm text-muted-foreground">정한 용어로 정해진 항목입니다: {item.basis}. 검토하지 않아도 이 제안을 씁니다.</p> : null}
         <label className="flex flex-col gap-2 text-sm font-medium" htmlFor="copy-text">내가 쓸 표현
           <textarea id="copy-text" rows={3} maxLength={6000} className={fieldClass} value={text} disabled={busy} onChange={e => edit(e.target.value, note, 'draft')} />
         </label>

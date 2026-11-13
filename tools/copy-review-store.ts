@@ -47,7 +47,7 @@ export function exportCopyMarkdown(data: CopyData): string {
     + '| 항목 | 분류 | 현재 표현 | 최초 제안 | 검토 상태 | 첨삭 문구 | 메모 |\n|---|---|---|---|---|---|---|\n'
     + data.items.map(item => {
       const r = data.reviews[item.id];
-      return '| ' + [item.id, item.category, item.original, item.suggested, r ? labels[r.decision] : '미검토', r?.text ?? '', r?.note ?? ''].map(cell).join(' | ') + ' |';
+      return '| ' + [item.id, item.category, item.original, item.suggested, r ? labels[r.decision] : item.basis ? `용어 결정 적용(${item.basis})` : '미검토', r?.text ?? '', r?.note ?? ''].map(cell).join(' | ') + ' |';
     }).join('\n') + '\n';
 }
 

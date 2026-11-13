@@ -63,5 +63,6 @@ test('첨삭 목록: 식별자와 문구가 빠지지 않고 작업 이름 제�
   const items: CopyItem[] = JSON.parse(readFileSync(new URL('../docs/copy-review-items.json', import.meta.url), 'utf8'));
   assert.equal(new Set(items.map(i => i.id)).size, items.length);
   assert.ok(items.every(i => i.id && i.category && i.original && i.suggested && i.context));
+  assert.match(exportCopyMarkdown({ items: [{ ...items[0], basis: 'copy-005' }], reviews: {} }), /용어 결정 적용\(copy-005\)/);
   assert.equal(items.filter(i => i.category === 'Catena 작업 이름').length, 30);
 });
