@@ -149,5 +149,16 @@
     },
     "approved_at": "2026-11-13",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T28",
+    "contract": "sha256:17830df0ad2c6b83eb9b9bcde404ccf6c33283e25264b4b0ddf635fe3eb02633",
+    "evidence": {
+      "T28-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354004614 (commit 0a9c3ae). prototype/src/lib/datasets.test.ts \"T28-C1: 프로젝트 목록의 묶음이 모두 검사를 통과해 읽히고, data/의 묶음이 목록에서 빠지지 않는다\"",
+      "T28-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354004614 (commit 0a9c3ae)",
+      "T28-C3": "사용자가 대화에서 승인(\"인수함.\"). 검토 대상: https://<기기>.<tailnet>.ts.net:5180/ 의 프로젝트 목록, 카드로 들어가기와 \"다른 프로젝트\"로 돌아오기, 출처 배지(데스크톱·폰, 밝은·어두운 모드)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
   }
 ]
