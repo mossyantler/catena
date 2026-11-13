@@ -84,6 +84,12 @@ HANDLERS['run.lost'] = {
   },
 };
 
+/** 이 프로세스(holder)가 지금 그 Run의 감독 임대를 갖고 있는가. Run에 기록을 남기는 명령은 이것을 먼저 확인한다(6-10). */
+export function holds(s: Store, run_id: string, holder: Holder): boolean {
+  const lease = leaseOf(s, run_id);
+  return Boolean(lease && same(lease.holder, holder) && !expired(lease.expires_at));
+}
+
 /** 대기 중인 Run을 실행 중으로 바꾸고 감독 임대를 얻는다. */
 export const beginRun = (s: Store, run_id: string, holder: Holder, ttlMs: number) =>
   execute(s, { command: 'run.begin', principal: SYSTEM, channel: 'runner', args: { run_id, holder, ttl_ms: ttlMs } });

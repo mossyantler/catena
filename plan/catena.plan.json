@@ -182,8 +182,8 @@
             },
             {
               "id": "T19", "name": "Claude Code Runner", "phase": "P2",
-              "goal": "Run마다 worktree를 만들고 사용자의 Claude Code 설정 그대로 claude -p를 프로세스 그룹으로 띄우며(권한 모드는 Project 설정), stream-json 출력을 확정된 ExecutionEvent 형식으로 바꾼다(A-1, A-2, A-5, v0.10)",
-              "inputs": { "lease": "T17.lease", "spec": "T15.spec", "event_schema": "T07.event_schema" },
+              "goal": "Run마다 worktree를 만들고 사용자의 Claude Code 설정 그대로 claude -p를 프로세스 그룹으로 띄우며(권한 모드는 Project 설정), stream-json 출력을 지금의 ExecutionEvent 형식(버전 1)으로 바꾼다(A-1, A-2, A-5, v0.10). 사용자 시험 뒤 형식이 바뀌면 T34에서 반영한다",
+              "inputs": { "lease": "T17.lease", "spec": "T15.spec" },
               "outputs": { "runner": "코드" },
               "conditions": [
                 { "id": "T19-C1", "method": "auto", "slot": "runner", "text": "Run 하나를 띄우면 노드 시작·활동·끝 이벤트와 transcript가 남고, 읽기 모델 검사 규칙을 통과한다. 다른 인터페이스에서 취소하면 프로세스 그룹이 끝난다(Engine 인수 기준 13)" },
@@ -258,6 +258,15 @@
           ]
         },
         {
+          "id": "T34", "name": "사용자 시험 뒤 이벤트 형식 반영", "phase": "P2",
+          "goal": "T07에서 확정한 ExecutionEvent 형식을 Engine(Runner 정규화, 명령이 발행하는 이벤트)과 읽기 모델에 반영한다. T19를 사용자 시험 전에 버전 1 형식으로 만들었기 때문에 둔 Task다(2026-11-13 사용자 결정)",
+          "inputs": { "event_schema": "T07.event_schema", "runner": "T19.runner" },
+          "outputs": { "schema_update": "코드" },
+          "conditions": [
+            { "id": "T34-C1", "method": "auto", "slot": "schema_update", "text": "Engine이 발행하는 이벤트와 두 시나리오 묶음이 확정된 형식으로 검사 규칙을 통과한다" }
+          ]
+        },
+        {
           "id": "T25", "name": "Engine MVP 인수 시험", "phase": "P3",
           "goal": "슬롯으로 연결된 Task 두 개(A → B)를 실제 Claude Code로 완주하고 Engine MVP 인수 기준(v0.10)을 확인한다",
           "inputs": { "orchestrator": "T23.orchestrator", "budget": "T24.budget" },
@@ -285,7 +294,7 @@
         {
           "id": "T30", "name": "live 이벤트 연결", "phase": "P2",
           "goal": "Engine의 이벤트를 도착하는 대로 접어 화면을 갱신한다. 화면 구조와 읽기 모델은 바꾸지 않고 데이터 출처만 바뀐다(B-7)",
-          "inputs": { "engine_report": "T25.engine_report", "ui": "T04.ui" },
+          "inputs": { "engine_report": "T25.engine_report", "ui": "T04.ui", "schema_update": "T34.schema_update" },
           "outputs": { "live_ui": "코드" },
           "conditions": [
             { "id": "T30-C1", "method": "auto", "slot": "live_ui", "text": "live 데이터와 묶음 데이터가 섞이지 않는다(Integrated 인수 기준 3)" },
