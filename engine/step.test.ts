@@ -45,7 +45,7 @@ test('C1: Agent 노드를 띄우면 새 worktree에서 실행되고, 노드 시�
   process.env.FAKE_CLAUDE_MODE = 'ok';
   process.env.FAKE_CLAUDE_ARGS = argsFile;
   const r = await runAgentNode(s, { run_id: 'A-r1', node_id: 'work', iteration: 1, holder, command: FAKE, tickMs: 50 });
-  assert.deepEqual(r, { result: '성공', exit: 0, cancelled: false });
+  assert.deepEqual([r.result, r.exit, r.cancelled], ['성공', 0, false]);
 
   const got = JSON.parse(readFileSync(argsFile, 'utf8'));
   for (const f of ['-p', '--output-format', 'stream-json', '--no-session-persistence', '--permission-mode', 'acceptEdits', '--model', 'claude-test-1', '--max-turns']) assert.ok(got.argv.includes(f), f);
@@ -56,14 +56,14 @@ test('C1: Agent 노드를 띄우면 새 worktree에서 실행되고, 노드 시�
   assert.ok(got.tmpdir.endsWith(join('tmp', 'A-r1')), 'Run 전용 TMPDIR');
 
   const evs = s.events().filter(e => e.payload.run_id === 'A-r1' && e.type !== 'run.state_changed' && e.type !== 'run.created');
-  assert.deepEqual(evs.map(e => e.type), ['node.started', 'agent.activity', 'agent.activity', 'agent.activity', 'usage.recorded', 'node.finished']);
+  assert.deepEqual(evs.map(e => e.type), ['node.started', 'agent.activity', 'agent.activity', 'submission.created', 'agent.activity', 'usage.recorded', 'node.finished']);
   assert.deepEqual(evs[0].payload.profile, { runtime: 'claude-code', model: 'claude-test-1' });
   assert.deepEqual(evs.slice(1, 3).map(e => [e.payload.kind, e.payload.source]), [['도구 호출', 'Agent 보고'], ['메시지', 'Agent 보고']]);
-  assert.equal(evs[3].payload.source, '시스템 기록');
-  assert.equal(s.refCheck(evs[3].payload.raw_ref), undefined, 'transcript 원문이 저장소에 있다');
-  assert.match(readFileSync(join(s.dir, 'artifacts', 'sha256', evs[3].payload.raw_ref.id.slice(7)), 'utf8'), /"type":"result"/);
-  assert.deepEqual([evs[4].payload.cost_usd, evs[4].payload.reliability], [0.12, '추정값']);
-  assert.equal(evs[5].payload.result, '성공');
+  assert.equal(evs[4].payload.source, '시스템 기록');
+  assert.equal(s.refCheck(evs[4].payload.raw_ref), undefined, 'transcript 원문이 저장소에 있다');
+  assert.match(readFileSync(join(s.dir, 'artifacts', 'sha256', evs[4].payload.raw_ref.id.slice(7)), 'utf8'), /"type":"result"/);
+  assert.deepEqual([evs[5].payload.cost_usd, evs[5].payload.reliability], [0.12, '추정값']);
+  assert.equal(evs[6].payload.result, '성공');
   assert.doesNotThrow(() => foldAll(s.events(), s.refCheck));
   s.close();
 });
@@ -122,7 +122,7 @@ test('C2: Agent의 "테스트 통과" 보고는 증거가 되지 않고 완료 �
   assert.equal(m.evidence.size, 0);
   assert.equal(conditionState(m, 'A', 'A-C1'), '미검증');
   assert.equal(card(m, 'A').acceptance, '미인수');
-  assert.equal(s.events().filter(e => ['evidence.recorded', 'acceptance.recorded', 'submission.created'].includes(e.type)).length, 0);
+  assert.equal(s.events().filter(e => ['evidence.recorded', 'acceptance.recorded'].includes(e.type)).length, 0);
   s.close();
 });
 

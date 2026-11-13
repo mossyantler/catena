@@ -66,6 +66,8 @@ function checkPlanShape(plan: any) {
     if (typeof t.id !== 'string' || typeof t.name !== 'string' || typeof t.goal !== 'string') no(`Task에 id·name·goal이 필요하다 (${t.id ?? '?'})`);
     if (!t.outputs || typeof t.outputs !== 'object' || !Array.isArray(t.conditions)) no(`${t.id}: outputs 객체와 conditions 배열이 필요하다`);
     for (const src of Object.values<any>(t.inputs ?? {})) if (typeof src !== 'string' || !/^[^.]+\.[^.]+$/.test(src)) no(`${t.id}: 입력 공급은 "Task.슬롯" 형식이다 (${src})`);
+    if (t.write_scope !== undefined && (!Array.isArray(t.write_scope) || !t.write_scope.length || !t.write_scope.every((p: any) => typeof p === 'string' && p)))
+      no(`${t.id}: write_scope는 경로 패턴(glob) 문자열의 배열이다`);
   }
 }
 

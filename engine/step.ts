@@ -9,6 +9,7 @@ import { foldAll } from '../tools/readmodel.ts';
 import { execute, HANDLERS, Refusal } from './commands.ts';
 import { holds, realProcs, recordProcess, renewLease, type Holder } from './supervise.ts';
 import { lines, normalize, prepare, start, stop, type Draft } from './runner.ts';
+import { submit, type Submitted } from './submit.ts';
 import type { Store } from './store.ts';
 
 const SYSTEM = { kind: 'system' as const, id: 'orchestrator' };
@@ -94,6 +95,26 @@ HANDLERS['run.cancelled'] = {
   },
 };
 
+// Run을 실패로 닫는다(6-5, 6-8 ③). 노드는 모두 닫혀 있어야 한다(E5). 예약은 기록된 사용량으로 정산하고,
+// 사용자가 다음 진행을 정하도록 decision 대기 사유를 낸다
+HANDLERS['run.fail'] = {
+  principals: ['system'],
+  run: (s, cmd, _p, emit) => {
+    const { run_id, holder, reason, action } = cmd.args;
+    mustHold(s, run_id, holder);
+    const r = runRow(s, run_id)!;
+    const t = s.db.prepare('SELECT ticket_id, payload FROM tickets WHERE run_id = ?').get(run_id) as { ticket_id: string; payload: string };
+    const used = s.events().filter(e => e.type === 'usage.recorded' && e.payload.run_id === run_id).reduce((n, e) => n + e.payload.cost_usd, 0);
+    const ticket = { ...JSON.parse(t.payload), status: '정산 완료', settlement: { charged_usd: used, reliability: '추정값', reason } };
+    s.db.prepare("UPDATE tickets SET status = '정산 완료', payload = ? WHERE ticket_id = ?").run(JSON.stringify(ticket), t.ticket_id);
+    setRun(s, run_id, { failure: reason }, '실패');
+    s.db.prepare('DELETE FROM run_leases WHERE run_id = ?').run(run_id);
+    emit({ type: 'run.state_changed', subject: run_id, issuer: 'Execution', payload: { run_id, to: '실패', reason } });
+    emit({ type: 'wait.raised', subject: r.task_id, issuer: 'Execution', payload: { wait_id: `W-${run_id}-decision`, wait_type: 'decision', target_id: r.task_id,
+      resolve_condition: '사용자가 다음 진행을 정함', action: { actor: '사용자', text: action, screen: 'Task 상세' } } });
+  },
+};
+
 const ok = (r: ReturnType<typeof execute>, what: string) => { if (!r.ok) throw new Error(`${what}: ${r.reason} ${r.message}`); return r; };
 
 // 계약과 입력을 Agent에게 넘길 지시문(8-4). 계약은 지시이고, 입력 산출물은 자료다(8-8)
@@ -104,10 +125,11 @@ function promptOf(contract: any): string {
     `출력 슬롯: ${contract.output_slots.map((o: any) => `${o.name}(${o.kind})`).join(', ')}`,
     '완료 조건(검사는 Catena가 따로 한다. 통과했다고 보고해도 증거가 되지 않는다):',
     ...contract.conditions.map((c: any) => `- ${c.condition_id}: ${c.description}`),
+    ...(contract.write_scope ? [`쓰기 범위: ${contract.write_scope.join(', ')}. 이 밖의 파일을 바꾸면 제출 기록이 거부된다.`] : []),
   ].join('\n');
 }
 
-export type StepResult = { result: '성공' | '실패' | '중단'; exit: number | null; cancelled: boolean };
+export type StepResult = { result: '성공' | '실패' | '중단'; exit: number | null; cancelled: boolean; submission?: Submitted };
 
 /** Agent 노드 하나를 실행한다. 감독 임대를 가진 프로세스(holder)만 부른다. */
 export async function runAgentNode(s: Store, o: {
@@ -169,8 +191,14 @@ export async function runAgentNode(s: Store, o: {
   const transcript = raw.length ? s.putArtifact(Buffer.concat(raw)) : undefined;
   const cancelled = stopped === 'cancel';
   const result: StepResult['result'] = cancelled ? '중단' : exit === 0 && resultDraft?.ok ? '성공' : '실패';
+  // 프로세스 그룹이 끝난 것을 확인한 뒤 결과를 고정한다(6-8). 취소된 단계의 결과는 제출하지 않는다
+  const submission = cancelled ? undefined : submit(s, { run_id: o.run_id, node_id: o.node_id, holder: o.holder, worktree, base_ref: baseline.base_ref,
+    write_scope: ticket.allowed?.write_scope ?? null, output_slots: contract.output_slots.map((x: any) => x.name) });
   ok(execute(s, { command: 'node.finish', principal: SYSTEM, channel: 'runner', args: { ...ids, result, transcript,
     usage: resultDraft ? { cost_usd: resultDraft.cost_usd, tokens: resultDraft.tokens } : undefined } }), 'node.finish');
   if (cancelled) ok(execute(s, { command: 'run.cancelled', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, holder: o.holder } }), 'run.cancelled');
-  return { result, exit, cancelled };
+  // 쓰기 범위 밖 변경: Run을 실패(쓰기 범위)로 닫는다. 다음 시도는 새 Run과 새 worktree로 한다(6-8 ③)
+  if (submission?.scope_check === '거부') ok(execute(s, { command: 'run.fail', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, holder: o.holder,
+    reason: '쓰기 범위', action: `쓰기 범위 밖 변경(${submission.rejected.join(', ')})을 보고 새 시도를 시작할지 결정` } }), 'run.fail');
+  return { result, exit, cancelled, submission };
 }
