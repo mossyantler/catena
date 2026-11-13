@@ -7,13 +7,14 @@ import { RawViewerProvider } from '@/components/raw-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { BASELINE, LoadError, loadBundle, type Bundle } from '@/lib/data'
+import { BASELINE, DATASET, LoadError, loadBundle, type Bundle } from '@/lib/data'
 import { parseHash, useHash } from '@/lib/route'
 import { CatenaProvider } from '@/lib/store'
 import { BaselinePage } from '@/pages/baseline'
 import { AgentPage, DagPage, WbsPage } from '@/pages/graphs'
 import { ApprovalPage, MilestonePage, PhasePage } from '@/pages/others'
 import { OverviewPage } from '@/pages/overview'
+import { ProjectsPage } from '@/pages/projects'
 import { TaskPage } from '@/pages/task'
 
 function Screen() {
@@ -43,13 +44,24 @@ function Screen() {
 }
 
 export default function App() {
+  // ?data=가 없으면 프로젝트 목록을 연다
+  if (!DATASET)
+    return (
+      <TooltipProvider>
+        <ProjectsPage />
+      </TooltipProvider>
+    )
+  return <Project name={DATASET} />
+}
+
+function Project({ name }: { name: string }) {
   const [state, setState] = useState<{ bundle?: Bundle; error?: LoadError }>({})
   useEffect(() => {
-    loadBundle().then(
+    loadBundle(name).then(
       (bundle) => setState({ bundle }),
       (e) => setState({ error: e instanceof LoadError ? e : new LoadError('불러오기 실패', String(e)) }),
     )
-  }, [])
+  }, [name])
   if (state.error)
     return (
       <main className="mx-auto max-w-2xl p-6">

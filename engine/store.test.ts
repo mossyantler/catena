@@ -24,7 +24,7 @@ test('C1: 여러 프로세스가 같은 저장소에 동시에 써도 seq가 1�
     const s = openStore(${JSON.stringify(dir)});
     writeFileSync(${JSON.stringify(dir)} + '/ready-${w}', '');
     const pause = new Int32Array(new SharedArrayBuffer(4));
-    while (!existsSync(${JSON.stringify(dir)} + '/go')) Atomics.wait(pause, 0, 0, 1);
+    for (const until = Date.now() + 30_000; !existsSync(${JSON.stringify(dir)} + '/go'); Atomics.wait(pause, 0, 0, 1)) if (Date.now() > until) process.exit(3);
     for (let i = 0; i < 50; i++) {
       s.tx(() => s.append({ occurred_at: new Date().toISOString(), type: 'test.ping', subject: 'w${w}-' + i, actor: { kind: 'system', instance: 'w${w}' }, issuer: 'test', payload: {} }));
       Atomics.wait(pause, 0, 0, 1);
@@ -34,7 +34,7 @@ test('C1: 여러 프로세스가 같은 저장소에 동시에 써도 seq가 1�
     const p = spawn(process.execPath, ['--input-type=module', '-e', writer(w)], { stdio: ['ignore', 'ignore', 'inherit'] });
     p.on('close', done);
   }));
-  while (readdirSync(dir).filter(f => f.startsWith('ready-')).length < 4) await new Promise(r => setTimeout(r, 5));
+  for (const until = Date.now() + 20_000; readdirSync(dir).filter(f => f.startsWith('ready-')).length < 4; await new Promise(r => setTimeout(r, 5))) if (Date.now() > until) throw new Error('자식 프로세스가 준비 신호를 보내지 않았다');
   writeFileSync(join(dir, 'go'), '');
   assert.deepEqual(await Promise.all(runs), [0, 0, 0, 0]);
   const s = openStore(dir);
@@ -45,6 +45,23 @@ test('C1: 여러 프로세스가 같은 저장소에 동시에 써도 seq가 1�
   for (const w of [0, 1, 2, 3]) assert.equal(evs.filter(e => e.subject.startsWith(`w${w}-`)).length, 50);
   const switches = evs.filter((e, i) => i > 0 && e.subject.split('-')[0] !== evs[i - 1].subject.split('-')[0]).length;
   assert.ok(switches > 20, `쓰기가 섞이지 않았다(전환 ${switches}회): 동시 쓰기를 시험하지 못했다`);
+});
+
+test('여러 프로세스가 새 저장소를 동시에 열어도 잠금 때문에 실패하지 않는다', async () => {
+  // 회귀 시험: busy_timeout보다 journal_mode를 먼저 두면, 동시에 연 프로세스 하나가 기다리지 않고 SQLITE_BUSY로 죽었다(2026-11-13 발견)
+  const dir = fresh();
+  const store = new URL('./store.ts', import.meta.url).pathname;
+  const codes = await Promise.all(Array.from({ length: 8 }, (_, w) => new Promise<number | null>(done => {
+    const code = `import { openStore } from ${JSON.stringify(store)};
+      const s = openStore(${JSON.stringify(dir)});
+      s.tx(() => s.append({ occurred_at: '', type: 'test.ping', subject: 'o${w}', actor: { kind: 'system', instance: 'o${w}' }, issuer: 'test', payload: {} }));
+      s.close();`;
+    spawn(process.execPath, ['--input-type=module', '-e', code], { stdio: ['ignore', 'ignore', 'inherit'] }).on('close', done);
+  })));
+  assert.deepEqual(codes, Array(8).fill(0));
+  const s = openStore(dir);
+  assert.deepEqual(s.events().map(e => e.seq), [1, 2, 3, 4, 5, 6, 7, 8]);
+  s.close();
 });
 
 test('트랜잭션: 실패하면 아무것도 남지 않고 다음 seq도 빈틈없이 이어진다. 트랜잭션 밖에서는 이벤트를 쓸 수 없다', () => {

@@ -55,7 +55,8 @@ export type EventDraft = Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'or
 export function openStore(dir: string) {
   mkdirSync(join(dir, 'artifacts', 'sha256'), { recursive: true });
   const db = new DatabaseSync(join(dir, 'catena.db'));
-  db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 10000; PRAGMA foreign_keys = ON;');
+  // 잠금 대기 시간을 가장 먼저 둔다. 여러 프로세스가 동시에 열 때 journal_mode 변경이 대기 없이 SQLITE_BUSY로 실패하지 않게 한다
+  db.exec('PRAGMA busy_timeout = 10000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   const ver = (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
   if (ver > SCHEMA_VERSION) throw new Error(`저장소 형식 ${ver}은 이 Catena(${SCHEMA_VERSION})보다 새롭다`);
   db.exec(`BEGIN IMMEDIATE; ${SCHEMA} PRAGMA user_version = ${SCHEMA_VERSION}; COMMIT;`);

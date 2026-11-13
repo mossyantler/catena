@@ -29,7 +29,7 @@ node tools/plan.ts [--hash <Task ID>]                            # Catena 제작
 tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보기: tailnet 안에서만 https://<기기>.<tailnet>.ts.net:5180 (끄기: --https=5180 off)
 ```
 
-시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 `roombook`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따른다.
+시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따른다.
 
 코드를 바꾼 뒤 `npm test`, `npm run check`, `npm run lint`를 실행한다. 화면을 바꿨으면 데스크톱(1440px)과 폰(375px), 밝은 모드와 어두운 모드에서 확인한다. 화면 자체의 자동 시험은 없고, 공정표 배치는 `prototype/src/lib/graph.test.ts`가 시험한다. `.claude/launch.json`의 `prototype`(개발 서버)과 `dist`(빌드 결과) 설정이 미리보기 서버를 띄운다.
 
@@ -45,7 +45,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - **진행 순서**
   1. `node tools/plan.ts`로 착수 가능한 Task를 확인한다. 사용자가 고르지 않았으면 어느 Task를 하는지 먼저 말한다.
   2. 그 Task의 계약(목표, 완료 조건) 안에서만 일한다. 계약 밖의 일이 필요하면 먼저 계획을 고친다.
-  3. 완료 조건마다 증거를 모은다. `auto` 조건의 증거는 push한 commit에서 GitHub Actions `check`(`.github/workflows/check.yml`: `npm test`, `npm run check`, `npm run lint`)가 통과한 실행이다. Agent가 자기 세션에서 돌린 검사는 확인용일 뿐 증거가 아니다(0-4).
+  3. 완료 조건마다 증거를 모은다. `auto` 조건의 증거는 push한 commit에서 GitHub Actions `check`(`.github/workflows/check.yml`: `npm test`, `npm run check`, `npm run lint`, `npm run build`)가 통과한 실행이다. Agent가 자기 세션에서 돌린 검사는 확인용일 뿐 증거가 아니다(0-4).
   4. 인수는 조건의 종류로 정한다(2026-11-13 사용자 결정). Agent는 자기 보고로 인수하지 않는다.
      - **조건이 모두 `auto`인 Task:** 작업을 커밋·push하고 그 commit의 CI가 통과하면, 실행 URL과 commit을 증거로 `accepted.json`에 적는다(`channel: "CI(auto 조건)"`). 사용자에게 묻지 않고 결과만 알린다. 사용자는 Milestone 병합 때 PR로 한꺼번에 검토한다.
      - **`human` 조건이 하나라도 있는 Task:** 사용자에게 그 조건의 산출물과 증거를 보이고, 승인한 때만 적는다.
@@ -65,7 +65,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `events.jsonl`: ExecutionEvent 한 줄에 하나. `seq`는 1부터 빈틈없이 이어진다.
 - `artifacts/sha256/<hex>`: 원문(transcript 발췌, diff, 검사 로그). 이벤트 payload는 원문을 `{kind: 'artifact', id: 'sha256:<hex>'}`로 참조하고, 불러올 때 해시를 다시 계산한다.
 - 묶음은 둘이다. `roombook`(회의실 예약, 기준 시나리오)과 `expense`(사내 경비 정산, 사용자 시험용). 둘은 구조가 같고 내용과 Task 번호가 다르다(대응표는 `docs/user-test.md`).
-- `prototype/public/data/<이름>`은 `scenarios/<이름>`을 가리키는 심볼릭 링크다(`catena`만 `plan/`을 가리킨다, 「Catena 제작 공정」). 묶음을 더하면 링크도 더한다. 빌드하면 `dist/data/<이름>/`에 실제 파일로 복사된다.
+- `prototype/public/data/<이름>`은 `scenarios/<이름>`을 가리키는 심볼릭 링크다(`catena`만 `plan/`을 가리킨다, 「Catena 제작 공정」). 묶음을 더하면 링크와 `prototype/public/data/index.json`의 항목도 더한다(빠지면 시험이 실패한다). 빌드하면 `dist/data/<이름>/`에 실제 파일로 복사된다.
 
 **`tools/readmodel.ts`: 규칙의 유일한 출처**
 - `checkStream`: 중복, 순서, 출처 선언을 확인한다(E1, E10).
@@ -78,6 +78,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - 화면은 `prototype/src/lib/rm.ts`를 거쳐 `tools/readmodel.ts`를 직접 불러온다. 생성 파일은 없다.
 - 상태 판단 로직은 넣지 않고 읽기 모델 질의 결과만 그린다. 상태 이름과 색의 대응만 `lib/status.ts`에 있다.
 - 불러오기 순서: 묶음 전체를 끝까지 접어 검사하고, 통과하면 기본 재생 위치로 다시 접는다(`App.tsx`, `lib/data.ts`, `lib/store.tsx`). 검사에 실패하면 화면을 그리지 않는다. 네트워크 오류는 "불러오기 실패", 규칙 위반은 "검사 실패"로 나눠 표시한다.
+- `?data=`가 없으면 프로젝트 목록(`pages/projects.tsx`)을 연다. `data/index.json`의 묶음을 하나씩 불러와 검사하고 출처·검증된 완료 조건과 함께 보인다. 프로젝트 화면의 사이드바 위 "다른 프로젝트"가 목록으로 돌아간다. 다른 프로젝트는 새로 열어 출처를 섞지 않는다(C-11).
 - 화면은 해시 라우팅이다: `#overview`, `#wbs[-id]`, `#dag[-id]`, `#task-<id>`, `#agent-<id>`, `#approval-<id>`, `#phase`, `#milestone`(`lib/route.ts`, 화면은 `pages/`).
 - 묶음 고르기(`?data=`)와 비교 기준 화면(`?mode=baseline`, `pages/baseline.tsx`)은 주소 쿼리로 정한다(`lib/data.ts`). 비교 기준 화면에는 Catena의 해석(대표 상태, 차단 이유, 공정표, 집계, 상태 색)을 넣지 않는다.
 - 공정표 세 가지(WBS 공정표, 전체 의존, Agent Graph)는 `components/flow-graph.tsx`(React Flow)가 그리고, 배치는 `lib/graph.ts`(ELK)가 정한다. 노드는 끌 수 없다. 전체 의존은 후행 노드에 엣지마다 입력 포트를 줘서 슬롯 숫자가 겹치지 않게 한다(`labels: 'head'`). ELK(1.6MB)는 그래프 화면에서만 따로 불러온다.

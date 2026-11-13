@@ -48,7 +48,7 @@ test('C1: 감독 프로세스를 강제 종료하면 임대 만료 뒤 남은 �
     writeFileSync(${JSON.stringify(dir)} + '/agent.pid', String(a.pid));
     setInterval(() => renewLease(s, 'A-r1', self, 1000), 200);`], { stdio: ['ignore', 'ignore', 'inherit'] });
   const pidFile = join(dir, 'agent.pid');
-  while (!existsSync(pidFile)) await sleep(10);
+  for (const until = Date.now() + 20_000; !existsSync(pidFile); await sleep(10)) if (Date.now() > until) throw new Error('감독 프로세스가 Agent를 띄우지 못했다');
   const pid = Number(readFileSync(pidFile, 'utf8'));
   assert.equal(row(s, "SELECT state FROM runs WHERE run_id = 'A-r1'").state, '실행 중');
   assert.deepEqual(recoverExpired(s), [], '감독이 살아 있는 동안에는 정리하지 않는다');
@@ -103,13 +103,13 @@ test('C2: 여러 프로세스가 동시에 정리를 시도해도 한 프로세�
       const s = openStore(${JSON.stringify(dir)});
       writeFileSync(${JSON.stringify(dir)} + '/ready-${w}', '');
       const pause = new Int32Array(new SharedArrayBuffer(4));
-      while (!existsSync(${JSON.stringify(dir)} + '/go')) Atomics.wait(pause, 0, 0, 1);
+      for (const until = Date.now() + 30_000; !existsSync(${JSON.stringify(dir)} + '/go'); Atomics.wait(pause, 0, 0, 1)) if (Date.now() > until) process.exit(3);
       process.stdout.write(JSON.stringify(recoverExpired(s)));
       s.close();`], { stdio: ['ignore', 'pipe', 'inherit'] });
     p.stdout.on('data', c => (outs[w] += c));
     p.on('close', done);
   }));
-  while (readdirSync(dir).filter(f => f.startsWith('ready-')).length < 4) await sleep(5);
+  for (const until = Date.now() + 20_000; readdirSync(dir).filter(f => f.startsWith('ready-')).length < 4; await sleep(5)) if (Date.now() > until) throw new Error('자식 프로세스가 준비 신호를 보내지 않았다');
   writeFileSync(join(dir, 'go'), '');
   assert.deepEqual(await Promise.all(runs), [0, 0, 0, 0]);
   assert.equal(outs.flatMap(o => JSON.parse(o)).length, 1, '정리한 프로세스는 하나');

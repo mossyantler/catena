@@ -104,6 +104,17 @@
             { "id": "T27-C3", "method": "auto", "slot": "cli_json", "text": "show가 선행·후행·독립 Task를 싣고, 그 값이 읽기 모델 relations와 같다" },
             { "id": "T27-C4", "method": "auto", "slot": "cli_json", "text": "Run 시도(run_attempt), Agent 회차(agent_round), 수정 횟수(repairs)를 나눠 싣고 CLI JSON schema_version을 2로 올린다. C-12 시험이 계속 통과한다" }
           ]
+        },
+        {
+          "id": "T28", "name": "프로젝트 고르기 화면", "phase": "P2",
+          "goal": "시안 첫 화면에서 Catena로 볼 수 있는 프로젝트(데이터 묶음과 계획 파일)를 출처, 진척과 함께 보여 주고 골라 들어가게 한다. 프로젝트 화면에서 목록으로 돌아갈 수 있다. 출처가 다른 데이터는 한 화면에 섞지 않는다(C-11)",
+          "inputs": { "ui": "T04.ui", "plan_view": "T09.plan_view" },
+          "outputs": { "project_picker": "코드" },
+          "conditions": [
+            { "id": "T28-C1", "method": "auto", "slot": "project_picker", "text": "데이터 목록(prototype/public/data/index.json)의 항목이 모두 있고 검사를 통과해 읽힌다(시험)" },
+            { "id": "T28-C2", "method": "auto", "slot": "project_picker", "text": "CI의 시험·타입 검사·lint·빌드가 통과한다" },
+            { "id": "T28-C3", "method": "human", "slot": "project_picker", "text": "데스크톱·폰, 밝은·어두운 모드에서 프로젝트 목록, 전환, 출처 표시를 사용자가 확인" }
+          ]
         }
       ]
     },

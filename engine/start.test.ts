@@ -94,7 +94,7 @@ test('C2: 여러 프로세스가 같은 Task의 착수를 동시에 요청해도
     const s = openStore(${JSON.stringify(dir)});
     writeFileSync(${JSON.stringify(dir)} + '/ready-${w}', '');
     const pause = new Int32Array(new SharedArrayBuffer(4));
-    while (!existsSync(${JSON.stringify(dir)} + '/go')) Atomics.wait(pause, 0, 0, 1);
+    for (const until = Date.now() + 30_000; !existsSync(${JSON.stringify(dir)} + '/go'); Atomics.wait(pause, 0, 0, 1)) if (Date.now() > until) process.exit(3);
     const r = execute(s, { command: 'run.start', principal: { kind: 'human', id: 'user' }, channel: 'cli-batch', args: { task_id: 'A', base_ref: 'base0' } });
     s.close();
     process.stdout.write(JSON.stringify({ ok: r.ok, message: r.ok ? '' : r.message }));`;
@@ -104,7 +104,7 @@ test('C2: 여러 프로세스가 같은 Task의 착수를 동시에 요청해도
     p.stdout.on('data', c => (outs[w] += c));
     p.on('close', done);
   }));
-  while (readdirSync(dir).filter(f => f.startsWith('ready-')).length < 4) await new Promise(r => setTimeout(r, 5));
+  for (const until = Date.now() + 20_000; readdirSync(dir).filter(f => f.startsWith('ready-')).length < 4; await new Promise(r => setTimeout(r, 5))) if (Date.now() > until) throw new Error('자식 프로세스가 준비 신호를 보내지 않았다');
   writeFileSync(join(dir, 'go'), '');
   assert.deepEqual(await Promise.all(runs), [0, 0, 0, 0]);
   const results = outs.map(o => JSON.parse(o));

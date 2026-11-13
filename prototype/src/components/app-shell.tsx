@@ -1,5 +1,5 @@
 // 화면 틀: 왼쪽 사이드바(화면 전환, WBS 트리), 위쪽 띠(위치, Task 찾기, 결정할 일, 데이터 출처와 재생 위치), 떠 있는 본문 판.
-import { ChevronsRight, Columns3, Flag, GanttChart, LayoutDashboard, Network, Repeat2 } from 'lucide-react'
+import { ChevronsRight, Columns3, Flag, FolderOpen, GanttChart, LayoutDashboard, Network, Repeat2 } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 
 import { StatusBadge, Tid, ToneDot } from '@/components/status'
@@ -129,6 +129,15 @@ function AppSidebar({ route }: { route: Route }) {
                   <span className="truncate font-semibold text-strong">Catena</span>
                   <span className="truncate text-xs text-muted-foreground">{model.project.name}</span>
                 </span>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild size="sm">
+              {/* 프로젝트 목록(첫 화면)으로 돌아간다. 다른 프로젝트는 새로 열어 출처를 섞지 않는다(C-11) */}
+              <a href={window.location.pathname}>
+                <FolderOpen aria-hidden />
+                다른 프로젝트
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
