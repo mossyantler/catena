@@ -75,5 +75,16 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T13",
+    "contract": "sha256:324bd697d5539427cd2cf57f1e1a5906aef3933c03c81483e19697304b7980dd",
+    "evidence": {
+      "T13-C1": "2026-11-13 작업 트리(commit a4f8da0 기준)에서 npm test 24개 통과, engine/store.test.ts는 3회 연속 통과. \"C1: 여러 프로세스가 같은 저장소에 동시에 써도 seq가 1부터 빈틈없이 이어진다\": 프로세스 4개가 시작 신호에 맞춰 50건씩 쓰고 seq 1~200 빈틈·중복 없음, 쓰기 전환 20회 초과(측정 108회)로 실제 동시 쓰기 확인",
+      "T13-C2": "2026-11-13 작업 트리(commit a4f8da0 기준)에서 npm test 24개 통과, engine/store.test.ts는 3회 연속 통과. \"C2: 불변 기록과 이벤트는 수정·삭제가 거부되고, 상태 테이블은 바뀔 수 있다\": contracts·baselines·submissions·evidence·acceptances·approval_requests·approval_decisions·events의 UPDATE·DELETE 거부",
+      "T13-C3": "2026-11-13 작업 트리(commit a4f8da0 기준)에서 npm test 24개 통과, engine/store.test.ts는 3회 연속 통과. \"C3: 기준 시나리오를 저장소에 넣고 접으면 검사 규칙을 통과하고, 묶음을 접은 결과와 같다\": roombook 이벤트와 원문을 저장소에 넣어 접은 describe 출력이 묶음과 같고, 원문을 바꾸면 E9로 거부"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
   }
 ]

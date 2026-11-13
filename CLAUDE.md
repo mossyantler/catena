@@ -15,7 +15,7 @@ Catena는 AI 개발 과정을 사람이 이해할 수 있는 공정(작업 단�
 
 ```bash
 npm run dev                                                      # 시안 보기: http://127.0.0.1:5180 (고치면 바로 반영)
-npm test                                                         # 전체 시험(tools/*.test.ts, prototype/src/**/*.test.ts)
+npm test                                                         # 전체 시험(tools/*.test.ts, engine/*.test.ts, prototype/src/**/*.test.ts)
 npm run check                                                    # 타입 검사(tsc -b, 화면과 Node 코드 둘 다)
 npm run lint                                                     # oxlint + @shadcn/lint 디자인 규칙
 npm run build                                                    # 게시용 빌드 → dist/ (타입 검사 포함)
@@ -78,6 +78,11 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - 서로 얽힌 묶음 안의 집계 엣지는 그리지 않고 묶음에 방향별 개수(`note`)를 적으며, 묶음을 누르면 펼친다(명세 집계 엣지 표시 규칙 2·3). 화살촉은 `HEAD` 크기로 고정하고, 선은 화살촉 밑변에서 끝낸다. 직선 엣지는 `trimEnd`로 끝을 당기고, 호는 끝에 곧은 구간을 둔다. 공정표 시험(`graph.test.ts`)이 이 모양을 확인한다.
 - shadcn 부품은 `components/ui/`에 있다. academic-assistant에서 가져왔고, 배지 variant만 공정 상태 색으로 바꿨다. 부품을 더할 때 shadcn CLI가 import 경로를 `"cn"`으로 잘못 쓰고 `cn` 패키지를 설치하는 일이 있었다. 더한 뒤 확인한다.
 - 디자인 규칙은 `DESIGN.md`에 있다. 화면을 바꾸기 전에 읽는다.
+
+**Engine** (`engine/`, Engine MVP)
+- `store.ts`: Project 저장소(14-3). Node 내장 `node:sqlite`로 SQLite 파일 하나(WAL)에 소유 Core별 테이블과 append-only `events` 테이블을 둔다. 기본 위치는 `~/.catena/projects/<project_id>/`(`catena.db`, `artifacts/sha256/`)로, 저장소 작업 트리 밖이다.
+- 쓰기는 `tx()`(BEGIN IMMEDIATE)로만 하고, 이벤트는 그 안에서 `append()`로 덧붙인다. seq는 트랜잭션 안에서 매기므로 여러 프로세스가 써도 빈틈이 없다. 불변 기록(계약, Baseline, 제출 기록, 증거, 인수, 승인 요청·결정, 이벤트)은 trigger로 수정·삭제를 거부한다.
+- `events()`는 읽기 모델의 입력 검사(`checkStream`)를 거친 이벤트를, `refCheck`는 산출물 원문 확인을 돌려준다. 그대로 `foldAll`에 넣는다.
 
 **시나리오 생성기** (`scenarios/roombook.build.ts`, `scenarios/expense.build.ts`, 공용 도구 `scenarios/sim.ts`)
 - 결정적이다. `event_id`는 `sha256(dataset:seq)`에서 만들고, 시각은 `at()`으로 정한다. `Date.now()`나 난수를 쓰지 않는다.

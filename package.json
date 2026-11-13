@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "check": "tsc -b",
     "lint": "oxlint",
-    "test": "node --test tools/*.test.ts prototype/src/**/*.test.ts"
+    "test": "node --test tools/*.test.ts engine/*.test.ts prototype/src/**/*.test.ts"
   },
   "devDependencies": {
     "@shadcn/lint": "0.2.5",
