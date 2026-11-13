@@ -107,5 +107,16 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T26",
+    "contract": "sha256:2477942aed9886b6fa08e5df7fd9a3da76d740caa5947eabbc03b802404d0d46",
+    "evidence": {
+      "T26-C1": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43345775160 (commit c92c363). tools/fold.test.ts \"E7(v0.10.2): auto 조건만 덮는 인수는 승인 없이 받아들이고, human 조건을 덮는 인수는 승인 없이는 거부한다\"",
+      "T26-C2": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43345775160 (commit c92c363). engine/start.test.ts \"T26-C2: human 조건이 없는 Task에는 인수 승인 노드가 없는 Workflow가, 있는 Task에는 승인 노드가 있는 Workflow가 묶인다\"",
+      "T26-C3": "사용자가 대화에서 승인(\"인수해. 진행해\"). 검토 대상: 폰으로 받은 명세 v0.10.1 → v0.10.2 변경분(3-2, 3-3, 7-4, 7-7, 7-8, 9-2, E7, 12장, Engine 인수 기준 14, 남는 위험)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
   }
 ]
