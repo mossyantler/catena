@@ -22,7 +22,8 @@ npm run build                                                    # 게시용 빌
 npm run preview                                                  # dist/ 보기: http://127.0.0.1:5181
 node --test --test-name-pattern="E4" tools/fold.test.ts          # 시험 하나
 node tools/fold.ts scenarios/roombook [--at N]                   # 읽기 모델을 글로 출력(N = 재생 위치)
-node tools/catena.ts status [--bundle 폴더] [--at N] [--json]    # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity
+node tools/catena.ts status [--bundle 폴더 | --store 폴더] [--at N] [--json]  # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity
+node tools/catena.ts plan import plan/catena.plan.json [--store 폴더]  # 계획 불러오기(명령 계층). 기본 저장소 ~/.catena/projects/<project_id>
 node scenarios/roombook.build.ts                                 # 시나리오 묶음 다시 만들기(expense.build.ts도 같다)
 node tools/plan.ts [--hash <Task ID>]                            # Catena 제작 공정: 계획 검사, Task 상태, 착수 가능 Task
 tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보기: tailnet 안에서만 https://<기기>.<tailnet>.ts.net:5180 (끄기: --https=5180 off)
@@ -40,6 +41,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - **인수 기록**: `plan/accepted.json`. 인수한 순서대로 쌓는다. 항목은 `task_id`, `contract`(인수 시점의 계약 해시, `node tools/plan.ts --hash <Task>`), `evidence`(조건 ID마다 증거: 실행한 명령과 결과, commit, 사용자가 본 산출물), `approved_at`, `channel`이다.
 - **검사**: `tools/planfold.ts`가 계획을 계획 이벤트로 바꿔 읽기 모델 검사 규칙(E2~E4, E11)을 거치고, 인수 기록마다 입력 슬롯이 먼저 인수됐는지, 조건마다 증거가 있는지, 계약 해시가 같은지 확인한다. `node tools/plan.ts`(글), 화면(`?data=catena`), `npm test`가 모두 이 코드를 쓴다.
 - **화면**: `plan/dataset.json`이 `origin: "plan"`으로 계획 파일과 인수 기록을 가리키고, `prototype/public/data/catena`가 `plan/`을 가리킨다. 사람 인수는 이벤트가 아니므로 접은 모델에 따로 더하고(`Bundle.accept`), Task 상세의 근거 칸에 인수 기록의 증거를 보인다.
+- **Task 부르기:** 사용자에게 Task를 말할 때는 ID만 쓰지 않고 `T14: 명령 계층과 계획 불러오기`처럼 "ID: 이름"으로 쓴다(2026-11-13 사용자 요청). 착수 가능 목록, 인수 요청, 다음 Task 제안 모두 같다.
 - **진행 순서**
   1. `node tools/plan.ts`로 착수 가능한 Task를 확인한다. 사용자가 고르지 않았으면 어느 Task를 하는지 먼저 말한다.
   2. 그 Task의 계약(목표, 완료 조건) 안에서만 일한다. 계약 밖의 일이 필요하면 먼저 계획을 고친다.
@@ -83,6 +85,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `store.ts`: Project 저장소(14-3). Node 내장 `node:sqlite`로 SQLite 파일 하나(WAL)에 소유 Core별 테이블과 append-only `events` 테이블을 둔다. 기본 위치는 `~/.catena/projects/<project_id>/`(`catena.db`, `artifacts/sha256/`)로, 저장소 작업 트리 밖이다.
 - 쓰기는 `tx()`(BEGIN IMMEDIATE)로만 하고, 이벤트는 그 안에서 `append()`로 덧붙인다. seq는 트랜잭션 안에서 매기므로 여러 프로세스가 써도 빈틈이 없다. 불변 기록(계약, Baseline, 제출 기록, 증거, 인수, 승인 요청·결정, 이벤트)은 trigger로 수정·삭제를 거부한다.
 - `events()`는 읽기 모델의 입력 검사(`checkStream`)를 거친 이벤트를, `refCheck`는 산출물 원문 확인을 돌려준다. 그대로 `foldAll`에 넣는다.
+- `commands.ts`: 명령 계층. `execute(store, {command, principal, channel, args, expected_version?})`가 권한(9-1)과 버전을 확인하고, 트랜잭션 안에서 상태 테이블과 이벤트를 쓴 뒤 저장된 이벤트 전체를 읽기 모델로 접어 검사한다. 어기면 아무것도 남기지 않고 `규칙 위반 / 권한 거부 / 버전 충돌 / 대상 없음`을 돌려준다. 성공한 명령은 `commands` 표에 주체·채널과 함께 남는다. 지금 명령은 `plan.import` 하나이고, 계획 이벤트는 `tools/planfold.ts`의 `planEvents`로 만든다(제작 공정 화면과 같은 코드).
 
 **시나리오 생성기** (`scenarios/roombook.build.ts`, `scenarios/expense.build.ts`, 공용 도구 `scenarios/sim.ts`)
 - 결정적이다. `event_id`는 `sha256(dataset:seq)`에서 만들고, 시각은 `at()`으로 정한다. `Date.now()`나 난수를 쓰지 않는다.
@@ -97,7 +100,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 
 ## 명세 문서
 
-- **최신은 `core_spec_v0.10.md`다(상태: 제안).** v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
+- **최신은 `core_spec_v0.10.1.md`다(상태: 제안).** v0.10에 계획 파일 형식, 출처 값 `plan`, 명령 기록, 저장소 드라이버(`node:sqlite`)와 위치를 더했다. v0.10은 v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
 - `runner_spec_v0.4.md`: Runner 연결부(Agent 띄우기, stream-json 정규화, 프로세스 그룹, 인증 정책)와 Engine MVP Claude Code Runner 구성. 규칙 자체를 바꾸려면 core spec을 고친다. `runner_security_spec_v0.1~0.3`은 이력이다.
 - `dashboard_interaction_design.md`: 대시보드에서 할 수 있는 조작의 설계 초안(T29). 객체·상태별 조작, 설계 규칙 I1~I13, 열린 질문, 비교 도구 조사. 인수되면 다음 명세 개정에 반영한다.
 - `orchestration_architecture_review.md`: v0.9의 기술 조사(Beads, Gas Town, Gas City, Herdr, LangGraph, ADK, MAF, Coding Agent CLI, MCP·ACP·A2A)와 아키텍처 결정 근거, Spike 목록.

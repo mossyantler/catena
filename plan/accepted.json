@@ -86,5 +86,16 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T14",
+    "contract": "sha256:c8c39eef1f3555085065cf9cdd7363c2923264b023ae2a96416949fff99a5eba",
+    "evidence": {
+      "T14-C1": "2026-11-13 작업 트리(commit 082f99c 기준)에서 npm test 27개 통과. engine/commands.test.ts \"C1: 규칙을 어긴 명령은 상태와 이벤트를 남기지 않는다\": 순환(E4)·없는 공급 Task(E2)·자기 참조(E4)·형식 오류·Agent 불러오기(권한 거부)·없는 명령(대상 없음)·재불러오기(규칙 위반)·기대 버전 불일치(버전 충돌) 뒤 이벤트·명령 기록·상태 테이블 7개의 행 수가 그대로",
+      "T14-C2": "2026-11-13 작업 트리(commit 082f99c 기준)에서 npm test 27개 통과. \"C2: plan/catena.plan.json을 불러와 만든 읽기 모델이 tools/plan.ts의 결과와 같다\": 불러와 접은 describe 출력이 foldPlan(plan, [])와 같고, 사람 인수 기록 9건을 더하면 loadPlan() 결과와 같다. CLI로 Task 26개·이벤트 98건 불러오기와 status --store 조회 확인",
+      "T14-C3": "사용자가 대화에서 승인(\"인수해\"). 검토 대상: 폰으로 받은 명세 v0.10 → v0.10.1 변경분(계획 파일 형식, 출처 값 plan, 명령 기록, 저장소 드라이버 node:sqlite와 기본 위치)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
   }
 ]

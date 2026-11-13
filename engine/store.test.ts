@@ -67,9 +67,10 @@ test('C2: 불변 기록과 이벤트는 수정·삭제가 거부되고, 상태 �
     acceptances: "INSERT INTO acceptances VALUES ('A1', 'T1', '{}')",
     approval_requests: "INSERT INTO approval_requests VALUES ('P1', '{}')",
     approval_decisions: "INSERT INTO approval_decisions VALUES ('P1', '{}')",
+    commands: "INSERT INTO commands VALUES (1, 1, 'plan.import', '{}', 'cli-tty', 'x', '')",
   };
   s.tx(() => { for (const sql of Object.values(rows)) s.db.exec(sql); s.append(ping('x')); });
-  const key: Record<string, string> = { contracts: 'task_id', baselines: 'baseline_id', submissions: 'submission_id', evidence: 'evidence_id', acceptances: 'acceptance_id', approval_requests: 'approval_id', approval_decisions: 'approval_id', events: 'seq' };
+  const key: Record<string, string> = { contracts: 'task_id', baselines: 'baseline_id', submissions: 'submission_id', evidence: 'evidence_id', acceptances: 'acceptance_id', approval_requests: 'approval_id', approval_decisions: 'approval_id', events: 'seq', commands: 'command' };
   for (const t of IMMUTABLE) {
     assert.throws(() => s.tx(() => s.db.exec(`UPDATE ${t} SET ${key[t]} = ${key[t]}`)), /불변 기록/, `${t} 수정`);
     assert.throws(() => s.tx(() => s.db.exec(`DELETE FROM ${t}`)), /불변 기록/, `${t} 삭제`);

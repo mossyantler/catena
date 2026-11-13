@@ -1,15 +1,21 @@
-// Catena CLI (core spec C-12). Product MVP 범위라 데이터 묶음을 읽는 질의만 한다.
-// 값은 화면(prototype/app.js)과 같은 읽기 모델 함수(readmodel.ts)로만 계산한다.
-// 사용: node tools/catena.ts <명령> [인자] [--bundle 폴더] [--at N] [--json]
+// Catena CLI (core spec C-12). 질의는 데이터 묶음(--bundle)이나 Project 저장소(--store)를 읽는다.
+// 공식 상태를 바꾸는 것은 명령 계층(engine/commands.ts)뿐이다: 지금은 plan import 하나.
+// 값은 화면과 같은 읽기 모델 함수(readmodel.ts)로만 계산한다.
+// 사용: node tools/catena.ts <질의> [인자] [--bundle 폴더 | --store 폴더] [--at N] [--json]
 //   status | ready | inbox | graph [요약 노드 ID] | show <Task> | agents <Task> | activity <Task> <노드>
-// 종료 코드: 0 성공, 1 규칙 위반(묶음 검사 실패), 2 사용법 오류, 3 대상 없음
+//       node tools/catena.ts plan import <계획 파일> [--store 폴더] [--json]   (기본 저장소: ~/.catena/projects/<project_id>)
+// 종료 코드: 0 성공, 1 규칙 위반, 2 사용법 오류, 3 대상 없음, 4 권한 거부, 5 버전 충돌
 // --json: { schema_version, command, source: { origin, dataset_id, position, total }, data | error: { kind, message } }
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { foldBundle } from './fold.ts';
 import * as RM from './readmodel.ts';
+import { defaultStoreDir, openStore } from '../engine/store.ts';
+import { execute, type Reason } from '../engine/commands.ts';
 
 export const CLI_SCHEMA = 1;
-const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>> [--bundle 폴더] [--at N] [--json]';
+const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더]';
+const EXIT: Record<Reason, number> = { '규칙 위반': 1, '대상 없음': 3, '권한 거부': 4, '버전 충돌': 5 };
 class CliError extends Error {
   kind: string; code: number;
   constructor(kind: string, code: number, msg: string) { super(msg); this.kind = kind; this.code = code; }
@@ -136,26 +142,61 @@ function text(cmd: string, d: any): string {
   return '';
 }
 
+// Project 저장소의 이벤트를 접는다(live). 저장소가 없으면 만들지 않고 대상 없음으로 끝낸다.
+function foldStore(dir: string, at?: number) {
+  try { readFileSync(join(dir, 'catena.db')); } catch { throw new CliError('대상 없음', 3, `Project 저장소를 찾을 수 없다: ${dir}`); }
+  const s = openStore(dir);
+  try {
+    const events = s.events();
+    const pos = at ?? events.length;
+    return { manifest: { origin: 'live', dataset_id: null }, model: RM.foldAll(events, s.refCheck, pos), position: pos, total: events.length };
+  } finally { s.close(); }
+}
+
+// plan import: 계획 파일을 명령 계층으로 불러온다. 대화형 터미널이면 cli-tty, 아니면 cli-batch 채널이다.
+function planImport(args: string[], storeDir: string | undefined, json: boolean) {
+  const [sub, file] = args;
+  if (sub !== 'import' || !file) throw new CliError('사용법 오류', 2, USAGE);
+  let plan: any;
+  try { plan = JSON.parse(readFileSync(file, 'utf8')); } catch (err) { throw new CliError('사용법 오류', 2, `계획 파일을 읽지 못했다: ${file} (${(err as Error).message})`); }
+  const id = plan?.project?.project_id;
+  if (!storeDir && (typeof id !== 'string' || !/^[A-Za-z0-9._-]+$/.test(id))) throw new CliError('사용법 오류', 2, '계획 파일에 쓸 수 있는 project.project_id가 없다. --store로 저장소를 정한다');
+  const dir = storeDir ?? defaultStoreDir(id);
+  const s = openStore(dir);
+  try {
+    const r = execute(s, { command: 'plan.import', principal: { kind: 'human', id: 'user' }, channel: process.stdin.isTTY && !json ? 'cli-tty' : 'cli-batch', args: { plan } });
+    if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
+    return { project: plan.project.name, tasks: r.events.filter(e => e.type === 'contract.confirmed').length, events: r.events.length, version: r.version, store: dir };
+  } finally { s.close(); }
+}
+
 function main(argv: string[]) {
   const opt = (name: string) => { const i = argv.indexOf(name); if (i < 0) return undefined; const v = argv[i + 1]; argv.splice(i, 2); return v; };
   const json = argv.includes('--json');
   if (json) argv.splice(argv.indexOf('--json'), 1);
   const bundle = opt('--bundle') ?? join(import.meta.dirname, '..', 'scenarios', 'roombook');
+  const storeDir = opt('--store');
   const atArg = opt('--at');
   const [cmd, ...args] = argv;
   let source: any = null;
   try {
+    if (cmd === 'plan') {
+      const data = planImport(args, storeDir, json);
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'plan import', source: { origin: 'live', store: data.store }, data }, null, 2));
+      else console.log(`계획을 불러왔다: ${data.project} · Task ${data.tasks}개 · 이벤트 ${data.events}건 · 저장소 ${data.store} (버전 ${data.version})`);
+      return;
+    }
     if (atArg !== undefined && !/^[1-9]\d*$/.test(atArg)) throw new CliError('사용법 오류', 2, `--at은 1 이상의 정수다: ${atArg}`);
     let r;
-    try { r = foldBundle(bundle, atArg === undefined ? undefined : Number(atArg)); } catch (err) {
+    try { r = storeDir ? foldStore(storeDir, atArg === undefined ? undefined : Number(atArg)) : foldBundle(bundle, atArg === undefined ? undefined : Number(atArg)); } catch (err) {
       if (err instanceof RM.RuleError) throw new CliError('규칙 위반', 1, `검사 실패 — 묶음을 불러오지 않음: ${err.message}`);
-      if ((err as any).code === 'ENOENT') throw new CliError('대상 없음', 3, `데이터 묶음을 찾을 수 없다: ${bundle}`);
+      if ((err as any).code === 'ENOENT') throw new CliError('대상 없음', 3, `데이터 묶음을 찾을 수 없다: ${storeDir ?? bundle}`);
       throw err;
     }
     source = { origin: r.manifest.origin, dataset_id: r.manifest.dataset_id ?? null, position: Math.min(r.position, r.total), total: r.total };
     const data = query(r.model, cmd, args);
     if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: cmd, source, data }, null, 2));
-    else console.log(`[${source.origin}] ${source.dataset_id} · 재생 위치 ${source.position} / ${source.total}\n${text(cmd, data)}`);
+    else console.log(`[${source.origin}] ${source.dataset_id ?? storeDir} · 재생 위치 ${source.position} / ${source.total}\n${text(cmd, data)}`);
   } catch (err) {
     if (!(err instanceof CliError)) throw err;
     if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: cmd ?? null, source, error: { kind: err.kind, message: err.message } }, null, 2));
