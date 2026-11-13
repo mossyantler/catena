@@ -137,5 +137,17 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T27",
+    "contract": "sha256:711c3c89d4cf7df4601476a9fdde89c1874c900ae7281981d19f5b51a232be93",
+    "evidence": {
+      "T27-C1": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\": inbox 승인 항목의 approval_id·submission_id·condition_ids가 읽기 모델 승인과 같고 activity 승인 항목에 범위가 실림",
+      "T27-C2": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\": raw 본문이 원문 파일과 같고, 없는 원문은 종료 코드 3, 잘못된 참조는 2, 해시가 다른 원문은 1(규칙 위반)",
+      "T27-C3": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\": show의 upstream·downstream·independent가 RM.relations와 같음(T07, T03, T14)",
+      "T27-C4": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\"와 \"C-12: CLI의 JSON 값은 화면이 쓰는 읽기 모델 질의 값과 같다\": run_attempt·agent_round·repairs, 옛 필드 없음, schema_version 2"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
   }
 ]
