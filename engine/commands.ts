@@ -29,20 +29,16 @@ type Handler = {
 
 const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 
-// Engine MVP의 내장 Workflow Template(3-2): 구현 → 자동 검사 → 실패 시 수정(상한 N회) → 사람 인수 승인.
+// Engine MVP의 내장 Workflow Template(3-2, v0.10.2): 구현 → 자동 검사 → 실패 시 수정(상한 N회) → 사람 인수 승인.
+// 인수 승인(human 노드)은 계약에 human 조건이 있을 때만 둔다. 조건이 모두 auto면 통과 증거로 인수한다(7-4).
 // 정의는 내용 해시 산출물로 두고 workflow_ref로 가리킨다(3-5: 공개된 정의는 바꾸지 않고 새 버전을 만든다).
-export const TEMPLATE = {
-  template_id: 'impl-check-fix-approve', version: 1, repair_limit: 3,
-  nodes: [
-    { node_id: 'work', name: '작성·구현', stage: '구현', executor: 'agent', role: 'Worker' },
-    { node_id: 'check', name: '자동 검사', stage: '검증', executor: 'code' },
-    { node_id: 'approve', name: '인수 승인', stage: '승인', executor: 'human', role: '승인자' },
-  ],
-  edges: [
-    { from: 'work', to: 'check', kind: '순차' },
-    { from: 'check', to: 'work', kind: '반복' },
-    { from: 'check', to: 'approve', kind: '순차' },
-  ],
+const WORK = { node_id: 'work', name: '작성·구현', stage: '구현', executor: 'agent', role: 'Worker' };
+const CHECK = { node_id: 'check', name: '자동 검사', stage: '검증', executor: 'code' };
+const APPROVE = { node_id: 'approve', name: '인수 승인', stage: '승인', executor: 'human', role: '승인자' };
+const LOOP = [{ from: 'work', to: 'check', kind: '순차' }, { from: 'check', to: 'work', kind: '반복' }];
+export const TEMPLATES = {
+  approve: { template_id: 'impl-check-fix-approve', version: 1, repair_limit: 3, nodes: [WORK, CHECK, APPROVE], edges: [...LOOP, { from: 'check', to: 'approve', kind: '순차' }] },
+  auto: { template_id: 'impl-check-fix', version: 1, repair_limit: 3, nodes: [WORK, CHECK], edges: LOOP },
 };
 const OPEN_RUN = ['대기', '실행 중', '일시 중단', '결과 불명'];
 
@@ -78,8 +74,8 @@ const HANDLERS: Record<string, Handler> = {
   // 입력 슬롯이 인수되기 전이면 run.created가 E6으로 거부되어 아무것도 남지 않는다. Agent를 띄우는 일은 감독(T17, T19)이 한다.
   'run.start': {
     humanOnly: true, // Engine MVP의 착수는 사용자가 요청한다(5-4)
-    prepare: s => s.putArtifact(JSON.stringify(TEMPLATE)),
-    run: (s, cmd, templateRef: Ref, emit) => {
+    prepare: s => ({ approve: s.putArtifact(JSON.stringify(TEMPLATES.approve)), auto: s.putArtifact(JSON.stringify(TEMPLATES.auto)) }),
+    run: (s, cmd, refs: Record<'approve' | 'auto', Ref>, emit) => {
       const a = cmd.args ?? {};
       const m = foldAll(s.events(), s.refCheck);
       const n = m.nodes.get(a.task_id);
@@ -87,7 +83,9 @@ const HANDLERS: Record<string, Handler> = {
       const contract = m.contracts.get(a.task_id);
       if (!contract) throw new Refusal('규칙 위반', `E2: 계약이 확정되지 않은 Task ${a.task_id}`);
       if ([...m.runs.values()].some((r: any) => r.task === a.task_id && OPEN_RUN.includes(r.state))) throw new Refusal('규칙 위반', `${a.task_id}에 끝나지 않은 Run이 있다. Task마다 끝나지 않은 Run은 하나뿐이다(6-1)`);
-      if (!m.workflows.has(a.task_id)) emit({ type: 'workflow.bound', subject: a.task_id, issuer: 'Graph Design', payload: { task_id: a.task_id, workflow_ref: templateRef, nodes: TEMPLATE.nodes, edges: TEMPLATE.edges } });
+      const kind = contract.conditions.some((c: any) => c.method !== 'auto') ? 'approve' : 'auto';
+      const templateRef = refs[kind];
+      if (!m.workflows.has(a.task_id)) emit({ type: 'workflow.bound', subject: a.task_id, issuer: 'Graph Design', payload: { task_id: a.task_id, workflow_ref: templateRef, nodes: TEMPLATES[kind].nodes, edges: TEMPLATES[kind].edges } });
 
       const attempt = [...m.runs.values()].filter((r: any) => r.task === a.task_id).length + 1;
       const run_id = `${a.task_id}-r${attempt}`;

@@ -201,6 +201,17 @@
           "id": "S24", "name": "검증과 인수",
           "children": [
             {
+              "id": "T26", "name": "인수 승인은 human 조건이 있을 때만", "phase": "P1",
+              "goal": "조건이 모두 auto인 Task는 같은 제출 기록의 통과 증거만으로 인수하고, 인수 승인(human 노드)은 human 조건이 있는 Task에만 둔다(2026-11-13 사용자 결정). 명세(3-2, 7-4, 7-7, 9-2, E7)와 읽기 모델 E7, 착수 때 묶는 내장 Template을 함께 고친다",
+              "inputs": { "spec": "T15.spec", "start": "T16.start" },
+              "outputs": { "approval_rule": "코드", "spec_rev": "명세" },
+              "conditions": [
+                { "id": "T26-C1", "method": "auto", "slot": "approval_rule", "text": "조건이 모두 auto인 인수는 같은 제출 기록의 통과 증거만으로 받아들이고, human 조건이 있는 인수는 그 조건을 덮는 사람 승인 없이는 E7로 거부한다(읽기 모델 시험)" },
+                { "id": "T26-C2", "method": "auto", "slot": "approval_rule", "text": "human 조건이 없는 Task를 착수하면 인수 승인 노드가 없는 Workflow가 묶이고, 있으면 승인 노드가 있는 Workflow가 묶인다(run.start 시험)" },
+                { "id": "T26-C3", "method": "human", "slot": "spec_rev", "text": "명세 v0.10.2 개정 검토: 3-2 내장 Template, 7-4 독립 검토, 7-7, 9-2, E7, 12장 흐름, Engine MVP 인수 기준, 이 결정의 남는 위험" }
+              ]
+            },
+            {
               "id": "T21", "name": "증거 수집", "phase": "P2",
               "goal": "제출 commit을 새 checkout에 꺼내 계약에 고정된 검증 정의로 필수 검사를 실행하고 EvidenceBundle을 만든다(A-6, 7-2, 7-3, 7-7, 7-8)",
               "inputs": { "submission": "T20.submission" },
@@ -213,7 +224,7 @@
             {
               "id": "T22", "name": "승인과 인수", "phase": "P2",
               "goal": "대화형 CLI에서만 승인과 반려를 받고(9-10), 같은 제출 기록에 묶인 증거와 승인으로 슬롯과 Task를 인수한다(7-5, 9-3, 9-4, D-1, D-2)",
-              "inputs": { "evidence": "T21.evidence" },
+              "inputs": { "evidence": "T21.evidence", "approval_rule": "T26.approval_rule" },
               "outputs": { "acceptance": "코드" },
               "conditions": [
                 { "id": "T22-C1", "method": "auto", "slot": "acceptance", "text": "비대화형 실행과 Runner 안에서 온 승인 요청이 거부된다(Engine 인수 기준 11)" },

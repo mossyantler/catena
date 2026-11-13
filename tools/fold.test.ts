@@ -99,6 +99,14 @@ test('E9: 원문 파일이 없거나 내용이 바뀌면 거부한다', () => {
   rejects(dir2, 'E9');
 });
 
+test('E7(v0.10.2): auto 조건만 덮는 인수는 승인 없이 받아들이고, human 조건을 덮는 인수는 승인 없이는 거부한다', () => {
+  const drop = (pred: (e: any) => boolean) => mutate(ev => { delete ev[find(ev, e => e.type === 'acceptance.recorded' && pred(e))].payload.approval_id; return ev; });
+  assert.doesNotThrow(() => foldBundle(drop(e => e.payload.task_id === 'T09' && e.payload.slot === 'screen_flow')), 'T09 screen_flow: auto 조건만');
+  rejects(drop(e => e.payload.task_id === 'T01' && e.payload.slot === 'requirements'), 'E7'); // auto와 human
+  rejects(drop(e => e.payload.task_id === 'T02' && e.payload.slot === 'token_policy'), 'E7'); // human만
+  rejects(mutate(ev => { ev[find(ev, e => e.type === 'acceptance.recorded' && e.payload.slot === 'screen_flow')].payload.approval_id = 'AP-없음'; return ev; }), 'E7');
+});
+
 test('E7: 증거·승인과 다른 제출 기록을 인수하면 거부한다', () => {
   rejects(mutate(ev => { ev[find(ev, e => e.payload.acceptance_id === 'AC06-1')].payload.submission_id = 'S06-1'; return ev; }), 'E7');
 });

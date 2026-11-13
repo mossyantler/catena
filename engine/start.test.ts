@@ -66,6 +66,24 @@ test('C1: 입력 슬롯이 인수되기 전에는 Run이 생기지 않는다(Eng
   s.close();
 });
 
+test('T26-C2: human 조건이 없는 Task에는 인수 승인 노드가 없는 Workflow가, 있는 Task에는 승인 노드가 있는 Workflow가 묶인다', () => {
+  const s = openStore(mkdtempSync(join(tmpdir(), 'catena-tpl-')));
+  const human2 = { ...task('H'), conditions: [{ id: 'H-C1', method: 'auto', slot: 'out', text: '시험' }, { id: 'H-C2', method: 'human', slot: 'out', text: '검토' }] };
+  const plan = { ...PLAN, wbs: [task('A'), human2] };
+  assert.ok(execute(s, { command: 'plan.import', principal: human, channel: 'cli-batch', args: { plan } }).ok);
+  for (const [id, nodes] of [['A', ['work', 'check']], ['H', ['work', 'check', 'approve']]] as const) {
+    const r = execute(s, start(id));
+    assert.ok(r.ok, !r.ok ? r.message : '');
+    const bound = r.events.find(e => e.type === 'workflow.bound')!;
+    assert.deepEqual(bound.payload.nodes.map((n: any) => n.node_id), nodes, id);
+    assert.ok(s.refCheck(bound.payload.workflow_ref) === undefined, 'Template 원문이 저장소에 있다');
+  }
+  const m = foldAll(s.events(), s.refCheck);
+  assert.equal(m.workflows.get('A').nodes.has('approve'), false);
+  assert.equal(m.workflows.get('H').nodes.get('approve').executor, 'human');
+  s.close();
+});
+
 test('C2: 여러 프로세스가 같은 Task의 착수를 동시에 요청해도 Run과 예약은 하나만 생긴다(Engine 인수 기준 10)', async () => {
   const { dir, s } = planned();
   s.close();
