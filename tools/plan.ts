@@ -30,8 +30,8 @@ function main() {
   const tasks = [...m.nodes.values()].filter(n => n.kind === 'task' && !CLOSED.includes(n.lifecycle));
   const ready = tasks.filter(n => card(m, n.id).rep === '착수 가능');
   console.log([
-    `[계획 파일] plan/catena.plan.json · Task ${tasks.length}개 · 사람 인수 ${accepted.length}건 · 검사 통과`,
-    '작업은 Catena가 시작하지 않은 Coding Agent 세션에서 한다(0-11). 인수는 사용자가 대화에서 승인한 기록이다(plan/accepted.json).',
+    `[계획 파일] plan/catena.plan.json · Task ${tasks.length}개 · 인수 기록 ${accepted.length}건 · 검사 통과`,
+    '작업은 Catena가 시작하지 않은 Coding Agent 세션에서 한다(0-11). 인수는 CI 결과(auto 조건)와 사용자 승인(human 조건)의 기록이다(plan/accepted.json).',
     `지금 착수할 수 있는 Task: ${ready.map(n => `${n.id}: ${n.name}`).join(', ') || '없음'}`,
     '',
     ...describe(m),

@@ -1,0 +1,19 @@
+# Catena 제작 공정의 자동 조건 검사(CLAUDE.md 「Catena 제작 공정」). push한 commit마다 시험·타입 검사·lint를 돌린다.
+# 작업하는 Agent가 자기 세션에서 돌린 검사는 증거가 아니므로(0-4), auto 조건의 증거는 이 실행 결과다.
+name: check
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run check
+      - run: npm run lint

@@ -316,7 +316,7 @@ function Origin() {
     return (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
         {badge}
-        <span>실행 기록 없음 · 사람 인수 기록 {bundle.accepted?.length ?? 0}건 (작업은 Catena가 시작하지 않은 Coding Agent 세션)</span>
+        <span>실행 기록 없음 · 인수 기록 {bundle.accepted?.length ?? 0}건 (작업은 Catena가 시작하지 않은 Coding Agent 세션)</span>
       </div>
     )
   return (

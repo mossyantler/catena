@@ -166,7 +166,7 @@ function TaskDetail({ id }: { id: string }) {
                     <span className="block min-w-60 whitespace-normal">
                       {hand.evidence[cd.condition_id]}
                       <span className="block text-xs text-muted-foreground">
-                        사람 인수 기록 · {hand.approved_at} · {hand.channel}
+                        인수 기록 · {hand.approved_at} · {hand.channel}
                       </span>
                     </span>
                   ) : cd.method === 'auto' ? (
