@@ -160,5 +160,15 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T19",
+    "contract": "sha256:ccc8202ec8a2d26716236a1508a61b9644c86af83800b357c350b87e168ca369",
+    "evidence": {
+      "T19-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354754952 (commit e930fca). engine/step.test.ts \"C1: Agent 노드를 띄우면 새 worktree에서 실행되고, 노드 시작·활동·끝과 transcript가 기록되며 검사 규칙을 통과한다\", \"C1: 다른 인터페이스에서 취소하면 감독 프로세스가 프로세스 그룹을 끝내고 Run을 취소로 닫는다(Engine 인수 기준 13)\"",
+      "T19-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354754952 (commit e930fca). engine/step.test.ts \"C2: Agent의 \\\"테스트 통과\\\" 보고는 증거가 되지 않고 완료 조건과 인수 상태를 바꾸지 않는다\", \"정규화(R-7)\""
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
   }
 ]
