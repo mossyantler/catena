@@ -118,5 +118,15 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T17",
+    "contract": "sha256:0acae6b7f06445e75aad6322ef760b0a7d32f7c039e4ff977eb9d5ae4a234988",
+    "evidence": {
+      "T17-C1": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43346317489 (commit fdcb15d). engine/supervise.test.ts \"C1: 감독 프로세스를 강제 종료하면 임대 만료 뒤 남은 프로세스가 정리되고 같은 Task를 새 Run으로 다시 시도할 수 있다(Engine 인수 기준 8)\"",
+      "T17-C2": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43346317489 (commit fdcb15d). engine/supervise.test.ts \"C2: 프로세스 ID가 재사용된 다른 프로세스는 죽이지 않는다\", \"C2: 여러 프로세스가 동시에 정리를 시도해도 한 프로세스만 정리하고, 넘겨받힌 임대는 연장되지 않는다\""
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
   }
 ]
