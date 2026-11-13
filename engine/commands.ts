@@ -13,7 +13,7 @@ export type Command = { command: string; principal: Principal; channel: Channel;
 export type Reason = '규칙 위반' | '권한 거부' | '버전 충돌' | '대상 없음';
 export type Outcome = { ok: true; events: Event[]; version: number } | { ok: false; reason: Reason; message: string; version: number };
 
-class Refusal extends Error {
+export class Refusal extends Error {
   reason: Reason;
   constructor(reason: Reason, message: string) {
     super(message);
@@ -21,8 +21,8 @@ class Refusal extends Error {
   }
 }
 
-type Handler = {
-  humanOnly: boolean;                      // 9-1: Agent는 질의와 요청만 한다
+export type Handler = {
+  principals: Principal['kind'][];         // 이 명령을 낼 수 있는 주체(9-1: Agent는 질의와 요청만 한다)
   prepare?: (s: Store, cmd: Command) => any; // 트랜잭션 전에 할 일(산출물 파일 쓰기, 14-3 쓰기 순서)
   run: (s: Store, cmd: Command, prepared: any, emit: (d: Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'origin' | 'dataset_id' | 'occurred_at' | 'actor'>) => void) => void;
 };
@@ -69,11 +69,12 @@ function checkPlanShape(plan: any) {
   }
 }
 
-const HANDLERS: Record<string, Handler> = {
+/** 명령 이름 → 처리기. 감독(supervise.ts)처럼 다른 모듈도 여기에 명령을 더한다. */
+export const HANDLERS: Record<string, Handler> = {
   // 착수 요청(6-1, v0.10): 착수 가능 판정(1-4)과 요청 주체 확인 → Baseline → Run(대기) → 예약과 Ticket을 트랜잭션 하나로.
   // 입력 슬롯이 인수되기 전이면 run.created가 E6으로 거부되어 아무것도 남지 않는다. Agent를 띄우는 일은 감독(T17, T19)이 한다.
   'run.start': {
-    humanOnly: true, // Engine MVP의 착수는 사용자가 요청한다(5-4)
+    principals: ['human'], // Engine MVP의 착수는 사용자가 요청한다(5-4)
     prepare: s => ({ approve: s.putArtifact(JSON.stringify(TEMPLATES.approve)), auto: s.putArtifact(JSON.stringify(TEMPLATES.auto)) }),
     run: (s, cmd, refs: Record<'approve' | 'auto', Ref>, emit) => {
       const a = cmd.args ?? {};
@@ -119,7 +120,7 @@ const HANDLERS: Record<string, Handler> = {
   },
   // 계획 불러오기(1-1, C-12): 계획 파일을 계획 이벤트로 바꿔 넣는다. 사람 인수 기록은 이벤트가 아니므로 넣지 않는다(0-11).
   'plan.import': {
-    humanOnly: true,
+    principals: ['human'],
     prepare: (s, cmd) => {
       checkPlanShape(cmd.args?.plan);
       for (const text of contractTexts(cmd.args.plan).values()) s.putArtifact(text);
@@ -150,7 +151,7 @@ export function execute(s: Store, cmd: Command): Outcome {
   const failed = (reason: Reason, message: string): Outcome => ({ ok: false, reason, message, version: versionOf(s) });
   const h = HANDLERS[cmd.command];
   if (!h) return failed('대상 없음', `없는 명령 ${cmd.command}`);
-  if (h.humanOnly && cmd.principal.kind !== 'human') return failed('권한 거부', `${cmd.command}는 사람만 한다(9-1)`);
+  if (!h.principals.includes(cmd.principal.kind)) return failed('권한 거부', `${cmd.command}는 ${h.principals.join('·')}만 한다(9-1)`);
   try {
     const prepared = h.prepare?.(s, cmd);
     return s.tx(() => {

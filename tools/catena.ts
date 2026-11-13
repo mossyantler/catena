@@ -12,6 +12,7 @@ import { foldBundle } from './fold.ts';
 import * as RM from './readmodel.ts';
 import { defaultStoreDir, openStore } from '../engine/store.ts';
 import { execute, type Reason } from '../engine/commands.ts';
+import { recoverExpired } from '../engine/supervise.ts';
 
 export const CLI_SCHEMA = 1;
 const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더]';
@@ -147,6 +148,7 @@ function foldStore(dir: string, at?: number) {
   try { readFileSync(join(dir, 'catena.db')); } catch { throw new CliError('대상 없음', 3, `Project 저장소를 찾을 수 없다: ${dir}`); }
   const s = openStore(dir);
   try {
+    recoverExpired(s); // 감독을 잃은 Run은 다음에 저장소를 연 Catena 프로세스가 정리한다(6-9, 6-10)
     const events = s.events();
     const pos = at ?? events.length;
     return { manifest: { origin: 'live', dataset_id: null }, model: RM.foldAll(events, s.refCheck, pos), position: pos, total: events.length };
@@ -164,6 +166,7 @@ function planImport(args: string[], storeDir: string | undefined, json: boolean)
   const dir = storeDir ?? defaultStoreDir(id);
   const s = openStore(dir);
   try {
+    recoverExpired(s);
     const r = execute(s, { command: 'plan.import', principal: { kind: 'human', id: 'user' }, channel: process.stdin.isTTY && !json ? 'cli-tty' : 'cli-batch', args: { plan } });
     if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
     return { project: plan.project.name, tasks: r.events.filter(e => e.type === 'contract.confirmed').length, events: r.events.length, version: r.version, store: dir };
