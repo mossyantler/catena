@@ -115,6 +115,16 @@
             { "id": "T28-C2", "method": "auto", "slot": "project_picker", "text": "CI의 시험·타입 검사·lint·빌드가 통과한다" },
             { "id": "T28-C3", "method": "human", "slot": "project_picker", "text": "데스크톱·폰, 밝은·어두운 모드에서 프로젝트 목록, 전환, 출처 표시를 사용자가 확인" }
           ]
+        },
+        {
+          "id": "T35", "name": "화면 문구를 하나씩 첨삭하는 검토 화면", "phase": "P2",
+          "goal": "대화에서 제안한 용어·문장·작업 이름을 한 항목씩 검토하고 직접 수정·메모·보류할 수 있게 한다. 첨삭은 별도 파일에 저장하고 명세용으로 내보내며, Tailscale HTTPS로 제공한다. 검토 결과를 기존 명세나 인수 기록에 자동 적용하지 않는다",
+          "inputs": { "ui": "T04.ui" },
+          "outputs": { "copy_review": "코드" },
+          "conditions": [
+            { "id": "T35-C1", "method": "auto", "slot": "copy_review", "text": "CI의 시험·타입 검사·lint·빌드 통과. 항목별 저장·재조회·잘못된 입력 거부·동시 수정 충돌 거부를 시험한다" },
+            { "id": "T35-C2", "method": "human", "slot": "copy_review", "text": "사용자가 Tailscale HTTPS에서 항목별 첨삭, 원문 유지·보류, 저장 후 이어보기, 명세용 내보내기를 확인한다" }
+          ]
         }
       ]
     },

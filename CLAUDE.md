@@ -15,6 +15,7 @@ Catena는 AI 개발 과정을 사람이 이해할 수 있는 공정(작업 단�
 
 ```bash
 npm run dev                                                      # 시안 보기: http://127.0.0.1:5180 (고치면 바로 반영)
+npm run copy-review                                              # 문구 첨삭: http://127.0.0.1:5182/?review=copy
 npm test                                                         # 전체 시험(tools/*.test.ts, engine/*.test.ts, prototype/src/**/*.test.ts)
 npm run check                                                    # 타입 검사(tsc -b, 화면과 Node 코드 둘 다)
 npm run lint                                                     # oxlint + @shadcn/lint 디자인 규칙
@@ -32,6 +33,8 @@ tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보
 시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따르고(사용자 1명, 측정표 `docs/user-test-results.csv`), 결과를 받으면 정답·기준 초과·오해 유형 칸을 같은 문서 4·5절과 대조해 채운다.
 
 코드를 바꾼 뒤 `npm test`, `npm run check`, `npm run lint`를 실행한다. 화면을 바꿨으면 데스크톱(1440px)과 폰(375px), 밝은 모드와 어두운 모드에서 확인한다. 화면 자체의 자동 시험은 없고, 공정표 배치는 `prototype/src/lib/graph.test.ts`가 시험한다. `.claude/launch.json`의 `prototype`(개발 서버)과 `dist`(빌드 결과) 설정이 미리보기 서버를 띄운다.
+
+문구 첨삭(T35)은 별도 개발 도구다. `docs/copy-review-items.json`의 제안을 항목별로 수정·확정·보류하고 Markdown·JSON으로 내보낸다. 저장 파일은 작업 트리 밖 `~/.catena/reviews/dashboard-copy.json`이며, 명세·계약·인수 기록은 자동으로 바꾸지 않는다. Tailscale HTTPS는 `tailscale serve --bg --https=5182 http://127.0.0.1:5182`로 연다. 첨삭 화면의 저장 API는 `npm run copy-review` 서버에서만 제공된다.
 
 ## Catena 제작 공정
 

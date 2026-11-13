@@ -1,6 +1,6 @@
 // 불러오기 순서: 묶음 전체를 끝까지 접어 검사하고, 통과하면 기본 재생 위치로 다시 접어 그린다.
 // 검사에 실패하면 화면을 그리지 않는다(ExecutionEvent 처리 규칙 7).
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 import { AppShell } from '@/components/app-shell'
 import { RawViewerProvider } from '@/components/raw-viewer'
@@ -16,6 +16,8 @@ import { ApprovalPage, MilestonePage, PhasePage } from '@/pages/others'
 import { OverviewPage } from '@/pages/overview'
 import { ProjectsPage } from '@/pages/projects'
 import { TaskPage } from '@/pages/task'
+
+const CopyReviewPage = lazy(() => import('@/pages/copy-review'))
 
 function Screen() {
   const hash = useHash()
@@ -44,6 +46,8 @@ function Screen() {
 }
 
 export default function App() {
+  if (new URLSearchParams(location.search).get('review') === 'copy')
+    return <Suspense fallback={<main className="p-6">첨삭 화면을 불러오고 있습니다.</main>}><CopyReviewPage /></Suspense>
   // ?data=가 없으면 프로젝트 목록을 연다
   if (!DATASET)
     return (
