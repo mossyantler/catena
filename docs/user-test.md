@@ -236,10 +236,10 @@ node tools/catena.ts status --bundle scenarios/roombook --json
 |---|---|
 | Q1 | `status` |
 | Q2 | `status`, `show <Task>` |
-| Q3 | `graph`, `ready`, `show <Task>` |
+| Q3 | `graph`, `ready`, `show <Task>`(`relations`: 선행·후행·독립) |
 | Q4 | `agents <Task>`, `activity <Task> <노드>` |
-| Q5 | `inbox` |
-| Q6 | `show <Task>`, `activity <Task> <노드>` |
-| Q8 | `status`(`rework`), `show <Task>`(`runs`) |
+| Q5 | `inbox`(승인 항목은 `approval`에 승인 범위), `raw <sha256:원문>` |
+| Q6 | `show <Task>`, `activity <Task> <노드>`, `raw <sha256:원문>`(검사 로그 본문) |
+| Q8 | `status`(`rework`), `show <Task>`(`runs`: `run_attempt` Run 시도, `agent_round` Agent 회차, `repairs` 수정 횟수) |
 
 틀린 과제는 JSON 형식 수정의 입력으로 쓴다.

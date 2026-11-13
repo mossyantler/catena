@@ -2,11 +2,12 @@
 // 공식 상태를 바꾸는 것은 명령 계층(engine/commands.ts)뿐이다: 지금은 plan import 하나.
 // 값은 화면과 같은 읽기 모델 함수(readmodel.ts)로만 계산한다.
 // 사용: node tools/catena.ts <질의> [인자] [--bundle 폴더 | --store 폴더] [--at N] [--json]
-//   status | ready | inbox | graph [요약 노드 ID] | show <Task> | agents <Task> | activity <Task> <노드>
+//   status | ready | inbox | graph [요약 노드 ID] | show <Task> | agents <Task> | activity <Task> <노드> | raw <sha256:원문>
 //       node tools/catena.ts plan import <계획 파일> [--store 폴더] [--json]   (기본 저장소: ~/.catena/projects/<project_id>)
 // 종료 코드: 0 성공, 1 규칙 위반, 2 사용법 오류, 3 대상 없음, 4 권한 거부, 5 버전 충돌
 // --json: { schema_version, command, source: { origin, dataset_id, position, total }, data | error: { kind, message } }
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { foldBundle } from './fold.ts';
 import * as RM from './readmodel.ts';
@@ -14,8 +15,8 @@ import { defaultStoreDir, openStore } from '../engine/store.ts';
 import { execute, type Reason } from '../engine/commands.ts';
 import { recoverExpired } from '../engine/supervise.ts';
 
-export const CLI_SCHEMA = 1;
-const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더]';
+export const CLI_SCHEMA = 2; // 2: run_attempt·agent_round·repairs, 승인 범위, show의 relations, raw 명령(T27)
+const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더]';
 const EXIT: Record<Reason, number> = { '규칙 위반': 1, '대상 없음': 3, '권한 거부': 4, '버전 충돌': 5 };
 class CliError extends Error {
   kind: string; code: number;
@@ -24,6 +25,15 @@ class CliError extends Error {
 const notFound = (what: string) => { throw new CliError('대상 없음', 3, `${what}을(를) 찾을 수 없다`); };
 
 const waitJson = (w: RM.Wait) => ({ type: w.type, issuer: w.issuer, resolve: w.resolve, action: w.action, raised_at: w.raised_at || null });
+// 승인이 덮는 범위: 조건 ID, 그 조건이 걸린 슬롯(없으면 Task 조건), 대상 제출 기록(T08 보조 확인의 지적 1)
+function approvalScope(m: RM.Model, a: any) {
+  const conds = m.contracts.get(a.task)?.conditions ?? [];
+  const ids: string[] = a.condition_ids ?? [];
+  return { approval_id: a.approval_id, kind: a.kind ?? null, submission_id: a.submission_id ?? null, condition_ids: ids,
+    slots: [...new Set(ids.map(id => conds.find((c: any) => c.condition_id === id)?.slot ?? null))] };
+}
+// Run 시도와 Agent 회차를 나눠 싣는다(T08 지적 4): run_attempt는 Run마다 1씩, agent_round는 같은 Run 안의 Agent 회차, repairs는 수정 반복 횟수
+const runJson = (r: ReturnType<typeof RM.rework>[number]) => ({ run_id: r.run_id, run_attempt: r.attempt, agent_round: r.round, repairs: Math.max(0, r.round - 1), state: r.state, reason: r.reason ?? null, failed: r.failed });
 const ref = (r?: RM.Ref) => r?.id ?? null;
 
 function cardOf(m: RM.Model, id: string) {
@@ -48,7 +58,8 @@ export function query(m: RM.Model, cmd: string, args: string[]): any {
     case 'ready':
       return { tasks: RM.tasksUnder(m).filter(id => RM.card(m, id).rep === '착수 가능').map(id => ({ id, name: m.nodes.get(id).name })) };
     case 'inbox':
-      return RM.inbox(m).map(({ id, w }) => ({ task: id, name: m.nodes.get(id).name, ...waitJson(w) }));
+      return RM.inbox(m).map(({ id, w }) => ({ task: id, name: m.nodes.get(id).name, ...waitJson(w),
+        approval: w.type === 'approval' && w.source ? approvalScope(m, m.approvals.get(w.source)) : null }));
     case 'graph': {
       const scope = args[0];
       if (scope && m.nodes.get(scope)?.kind !== 'summary') notFound(`요약 노드 ${scope}`);
@@ -62,7 +73,11 @@ export function query(m: RM.Model, cmd: string, args: string[]): any {
       const n = taskOf(m, id);
       const c = m.contracts.get(id);
       const wf = m.workflows.get(id);
+      const rel = RM.relations(m, id);
       return { ...cardOf(m, id), lifecycle: n.lifecycle, path: RM.path(m, id).map(x => m.nodes.get(x).name), goal: c?.goal ?? null,
+        // 선행·후행(직간접)과 독립(원본 의존 경로가 없어 함께 진행할 수 있는) Task. 화면의 전체 의존 선택과 같은 값(T08 지적 3)
+        relations: { upstream: [...rel.ancestors].sort(), downstream: [...rel.descendants].sort(),
+          independent: RM.tasksUnder(m).filter(t => t !== id && !rel.ancestors.has(t) && !rel.descendants.has(t)) },
         condition_states: (c?.conditions ?? []).map((cd: any) => ({ condition_id: cd.condition_id, description: cd.description, slot: cd.slot ?? null, method: cd.method,
           state: RM.conditionState(m, id, cd.condition_id),
           evidence: [...m.evidence.values()].filter(e => e.task === id && e.condition_id === cd.condition_id).map(e => ({ evidence_id: e.evidence_id, result: e.result, submission_id: e.submission_id })) })),
@@ -72,7 +87,7 @@ export function query(m: RM.Model, cmd: string, args: string[]): any {
         }),
         outputs: (c?.output_slots ?? []).map((s: any) => ({ slot: s.name, accepted: m.slotAccepted.has(`${id}/${s.name}`),
           consumers: m.deps.filter(x => x.from.task_id === id && x.from.slot === s.name).map(x => x.to.task_id) })),
-        runs: RM.rework(m, id).map(r => ({ ...r, steps: m.nodeLog.filter(l => l.run === r.run_id).map(l => ({ node: l.node, name: wf.nodes.get(l.node).name,
+        runs: RM.rework(m, id).map(r => ({ ...runJson(r), steps: m.nodeLog.filter(l => l.run === r.run_id).map(l => ({ node: l.node, name: wf.nodes.get(l.node).name,
           iteration: l.iteration, role: l.actor.role ?? null, instance: l.actor.instance, profile: l.profile ?? null, result: l.result ?? null })) })),
         submissions: [...m.submissions.values()].filter(s => s.task === id).map(s => ({ submission_id: s.submission_id, node: s.node_id, iteration: s.iteration,
           scope_check: s.scope_check, slots: s.slots.map((x: any) => x.output_slot), diff_ref: ref(s.diff_ref) })) };
@@ -82,7 +97,7 @@ export function query(m: RM.Model, cmd: string, args: string[]): any {
       taskOf(m, id);
       if (!m.workflows.has(id)) notFound(`${id}의 Workflow`);
       const g = RM.agentGraph(m, id);
-      return { run: g.run ? { run_id: g.run.id, attempt: g.run.attempt, state: g.run.state, reason: g.run.reason ?? null } : null,
+      return { run: g.run ? { run_id: g.run.id, run_attempt: g.run.attempt, state: g.run.state, reason: g.run.reason ?? null } : null,
         nodes: g.nodes.map(({ node_id, name, stage, executor, role, status, runs, instances, profiles }) => ({ node_id, name, stage, executor, role: role ?? null, status, runs, instances, profiles })),
         edges: g.edges };
     }
@@ -97,7 +112,7 @@ export function query(m: RM.Model, cmd: string, args: string[]): any {
         activities: a.acts.map(x => ({ at: x.at, kind: x.kind, summary: x.summary, source: x.source, role: x.actor.role ?? null, instance: x.actor.instance, to_instance: x.to_instance ?? null, raw_ref: ref(x.raw_ref) })),
         submissions: a.subs.map(s => ({ submission_id: s.submission_id, at: s.at, diff_ref: ref(s.diff_ref) })),
         evidence: a.evs.map(e => ({ evidence_id: e.evidence_id, condition_id: e.condition_id, result: e.result, at: e.at, raw_log_ref: ref(e.raw_log_ref) })),
-        approvals: a.approvals.map(x => ({ approval_id: x.approval_id, decision: x.decision ?? null, requested: x.requested })),
+        approvals: a.approvals.map(x => ({ ...approvalScope(m, x), decision: x.decision ?? null, requested: x.requested })),
         cost_usd: a.cost };
     }
     default:
@@ -119,19 +134,20 @@ function text(cmd: string, d: any): string {
         `뒤를 막는 Task: ${d.blocking.map((b: any) => `${b.task}(후행 ${b.blocks})`).join(', ') || '없음'}`,
         ...d.tasks.map((c: any) => `  ${cardLine(c)}`)].join('\n');
     case 'ready': return d.tasks.length ? d.tasks.map((t: any) => `${t.id} ${t.name}`).join('\n') : '지금 착수할 수 있는 Task가 없다';
-    case 'inbox': return d.length ? d.map((x: any) => `${x.task} ${x.name} — ${x.type}: ${x.action.text} (${x.action.screen})`).join('\n') : '결정할 일이 없다';
+    case 'inbox': return d.length ? d.map((x: any) => `${x.task} ${x.name} — ${x.type}: ${x.action.text} (${x.action.screen})${x.approval ? ` · 승인 범위 ${x.approval.condition_ids.join(', ')}` : ''}`).join('\n') : '결정할 일이 없다';
     case 'graph':
       return [`범위: ${d.scope ?? '최상위'} · 하위 ${d.children.length} · Task ${d.tasks.length}`,
         ...d.edges.map((e: any) => `  ${e.aggregated ? '[집계]' : '[원본]'} ${e.from} → ${e.to} 의존 ${e.count}(인수 ${e.accepted})`),
         'Task 단위 의존', ...d.task_edges.map((e: any) => `  ${e.from} → ${e.to} 슬롯 ${e.accepted}/${e.count} 인수`)].join('\n');
     case 'show':
-      return [cardLine(d), `경로: ${d.path.join(' / ')}`, `목표: ${d.goal ?? '(계약 전)'}`, '완료 조건',
+      return [cardLine(d), `경로: ${d.path.join(' / ')}`, `목표: ${d.goal ?? '(계약 전)'}`,
+        `선행 ${d.relations.upstream.join(', ') || '없음'} · 후행 ${d.relations.downstream.join(', ') || '없음'} · 독립 ${d.relations.independent.join(', ') || '없음'}`, '완료 조건',
         ...d.condition_states.map((c: any) => `  ${c.condition_id} ${c.state} — ${c.description}${c.evidence.length ? ` (증거 ${c.evidence.map((e: any) => `${e.evidence_id} ${e.result}`).join(', ')})` : ''}`),
         '실행 기록',
-        ...d.runs.map((r: any) => `  ${r.run_id} 시도 ${r.attempt} · ${r.state}${r.reason ? ` (${r.reason})` : ''} · Agent ${r.round}회차${r.round > 1 ? ` · 수정 ${r.round - 1}회` : ''}${r.failed.length ? ` · 통과 못 한 검사 ${r.failed.length}` : ''}`
+        ...d.runs.map((r: any) => `  ${r.run_id} Run 시도 ${r.run_attempt} · ${r.state}${r.reason ? ` (${r.reason})` : ''} · Agent ${r.agent_round}회차${r.repairs ? ` · 수정 ${r.repairs}회` : ''}${r.failed.length ? ` · 통과 못 한 검사 ${r.failed.length}` : ''}`
           + r.steps.map((s: any) => `\n    ${s.name} ${s.iteration}회차 · ${s.role ?? ''} ${s.instance}${prof(s.profile)} · ${s.result ?? '진행 중'}`).join(''))].join('\n');
     case 'agents':
-      return [d.run ? `${d.run.run_id} 시도 ${d.run.attempt} · ${d.run.state}` : 'Run 없음',
+      return [d.run ? `${d.run.run_id} Run 시도 ${d.run.run_attempt} · ${d.run.state}` : 'Run 없음',
         ...d.nodes.map((n: any) => `  [${n.stage}] ${n.name} (${n.executor}${n.role ? ` · ${n.role}` : ''}) — ${n.status}${n.runs > 1 ? ` · ${n.runs}회` : ''}${n.instances.length ? ` · ${n.instances.join(', ')}` : ''}${n.profiles.map(prof).join('')}`),
         ...d.edges.filter((e: any) => e.kind === '반복').map((e: any) => `  반복 ${e.from} → ${e.to}: ${e.loops}회`)].join('\n');
     case 'activity':
@@ -141,6 +157,17 @@ function text(cmd: string, d: any): string {
         ...d.evidence.map((e: any) => `  증거 ${e.evidence_id} ${e.condition_id} ${e.result} (시스템 기록)`)].join('\n');
   }
   return '';
+}
+
+// 원문 보기(T08 지적 2): 데이터 묶음이나 저장소의 artifacts/sha256/에서 읽고 해시를 다시 계산한다(E9와 같은 확인).
+function rawOf(dir: string, id?: string) {
+  const hex = id?.replace(/^sha256:/, '');
+  if (!hex || !/^[0-9a-f]{64}$/.test(hex)) throw new CliError('사용법 오류', 2, `원문 참조는 sha256:<64자리 16진수>다: ${id ?? '(없음)'}`);
+  const file = join(dir, 'artifacts', 'sha256', hex);
+  if (!existsSync(file)) notFound(`원문 sha256:${hex}`);
+  const buf = readFileSync(file);
+  if (createHash('sha256').update(buf).digest('hex') !== hex) throw new CliError('규칙 위반', 1, `원문 내용이 해시와 다르다(E9): sha256:${hex}`);
+  return { ref: `sha256:${hex}`, bytes: buf.length, text: buf.toString('utf8') };
 }
 
 // Project 저장소의 이벤트를 접는다(live). 저장소가 없으면 만들지 않고 대상 없음으로 끝낸다.
@@ -197,8 +224,9 @@ function main(argv: string[]) {
       throw err;
     }
     source = { origin: r.manifest.origin, dataset_id: r.manifest.dataset_id ?? null, position: Math.min(r.position, r.total), total: r.total };
-    const data = query(r.model, cmd, args);
+    const data = cmd === 'raw' ? rawOf(storeDir ?? bundle, args[0]) : query(r.model, cmd, args);
     if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: cmd, source, data }, null, 2));
+    else if (cmd === 'raw') process.stdout.write(data.text);
     else console.log(`[${source.origin}] ${source.dataset_id ?? storeDir} · 재생 위치 ${source.position} / ${source.total}\n${text(cmd, data)}`);
   } catch (err) {
     if (!(err instanceof CliError)) throw err;

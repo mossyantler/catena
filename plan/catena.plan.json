@@ -92,6 +92,18 @@
             { "id": "T09-C1", "method": "auto", "slot": "plan_view", "text": "npm test, npm run check, npm run lint 통과. 화면과 node tools/plan.ts가 같은 계획 접기 코드(tools/planfold.ts)를 쓴다" },
             { "id": "T09-C2", "method": "human", "slot": "plan_view", "text": "사용자가 ?data=catena 화면에서 WBS, 공정표, Task 카드, 인수 근거를 보고 진행 상황을 읽을 수 있는지, 실행 기록이 아니라는 점이 드러나는지 확인" }
           ]
+        },
+        {
+          "id": "T27", "name": "CLI JSON 개선", "phase": "P2",
+          "goal": "T08 보조 확인에서 두 시나리오가 함께 지적한 네 가지를 고친다: 승인과 조건의 연결, 원문 보기, 선행·후행·독립 Task 질의, Run 시도와 Agent 회차의 구분(C-12, 0-10)",
+          "inputs": { "cli": "T03.cli", "agent_report": "T08.agent_report" },
+          "outputs": { "cli_json": "코드" },
+          "conditions": [
+            { "id": "T27-C1", "method": "auto", "slot": "cli_json", "text": "inbox와 activity의 승인 항목이 승인 범위의 조건 ID, 슬롯, 제출 기록을 싣는다" },
+            { "id": "T27-C2", "method": "auto", "slot": "cli_json", "text": "raw 명령이 원문 내용을 돌려주고, 없는 원문은 대상 없음, 해시가 맞지 않는 원문은 규칙 위반으로 거부한다" },
+            { "id": "T27-C3", "method": "auto", "slot": "cli_json", "text": "show가 선행·후행·독립 Task를 싣고, 그 값이 읽기 모델 relations와 같다" },
+            { "id": "T27-C4", "method": "auto", "slot": "cli_json", "text": "Run 시도(run_attempt), Agent 회차(agent_round), 수정 횟수(repairs)를 나눠 싣고 CLI JSON schema_version을 2로 올린다. C-12 시험이 계속 통과한다" }
+          ]
         }
       ]
     },

@@ -22,7 +22,7 @@ npm run build                                                    # 게시용 빌
 npm run preview                                                  # dist/ 보기: http://127.0.0.1:5181
 node --test --test-name-pattern="E4" tools/fold.test.ts          # 시험 하나
 node tools/fold.ts scenarios/roombook [--at N]                   # 읽기 모델을 글로 출력(N = 재생 위치)
-node tools/catena.ts status [--bundle 폴더 | --store 폴더] [--at N] [--json]  # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity
+node tools/catena.ts status [--bundle 폴더 | --store 폴더] [--at N] [--json]  # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity·raw <sha256:원문>. JSON schema_version 2
 node tools/catena.ts plan import plan/catena.plan.json [--store 폴더]  # 계획 불러오기(명령 계층). 기본 저장소 ~/.catena/projects/<project_id>
 node scenarios/roombook.build.ts                                 # 시나리오 묶음 다시 만들기(expense.build.ts도 같다)
 node tools/plan.ts [--hash <Task ID>]                            # Catena 제작 공정: 계획 검사, Task 상태, 착수 가능 Task

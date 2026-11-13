@@ -175,12 +175,55 @@ test('C-12: CLI의 JSON 값은 화면이 쓰는 읽기 모델 질의 값과 같�
       ids.map(id => { const c = card(m, id); return [id, c.rep, c.accepted, c.waits[0]?.type ?? null]; }));
     assert.deepEqual(st.data.inbox.map((x: any) => x.task), RM.inbox(m).map(x => x.id));
     assert.deepEqual(cli('graph').data.task_edges, RM.taskEdges(m, RM.tasksUnder(m)));
-    assert.deepEqual(cli('show', T03).data.runs.map((r: any) => [r.run_id, r.round, r.failed.length]), RM.rework(m, T03).map(r => [r.run_id, r.round, r.failed.length]));
+    assert.deepEqual(cli('show', T03).data.runs.map((r: any) => [r.run_id, r.agent_round, r.failed.length]), RM.rework(m, T03).map(r => [r.run_id, r.round, r.failed.length]));
     assert.deepEqual(cli('agents', T07).data.nodes.map((n: any) => [n.node_id, n.status, n.runs]), RM.agentGraph(m, T07).nodes.map((n: any) => [n.node_id, n.status, n.runs]));
   }
   const miss = spawnSync(process.execPath, [CLI, 'show', 'T99', '--json'], { encoding: 'utf8' });
   assert.equal(miss.status, 3);
   assert.equal(JSON.parse(miss.stdout).error.kind, '대상 없음');
+});
+
+test('T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)', () => {
+  const { model: m } = foldBundle(SRC);
+  const run = (...a: string[]) => spawnSync(process.execPath, [CLI, ...a, '--bundle', SRC, '--json'], { encoding: 'utf8' });
+  const cli = (...a: string[]) => JSON.parse(run(...a).stdout);
+  // C1: 승인 항목이 덮는 조건·슬롯·제출 기록
+  const inbox = cli('inbox');
+  assert.equal(inbox.schema_version, 2);
+  for (const x of inbox.data) {
+    const w = RM.inbox(m).find(i => i.id === x.task)!.w;
+    if (w.type !== 'approval') { assert.equal(x.approval, null); continue; }
+    const a = m.approvals.get(w.source!);
+    assert.deepEqual([x.approval.approval_id, x.approval.submission_id, x.approval.condition_ids], [a.approval_id, a.submission_id, a.condition_ids]);
+  }
+  assert.deepEqual(inbox.data.find((x: any) => x.task === 'T02').approval, { approval_id: 'A02-2', kind: '품질', submission_id: 'S02-1', condition_ids: ['T02-C2'], slots: ['auth_api_spec'] });
+  assert.ok(cli('activity', 'T02', 'approve').data.approvals.every((x: any) => x.condition_ids.length > 0 && 'decision' in x));
+  // C2: 원문 보기. 내용이 파일과 같고, 없는 원문은 대상 없음, 해시가 다른 원문은 규칙 위반
+  const ev = [...m.evidence.values()][0];
+  const hex = ev.raw_log_ref.id.slice(7);
+  assert.equal(cli('raw', ev.raw_log_ref.id).data.text, readFileSync(join(SRC, 'artifacts', 'sha256', hex), 'utf8'));
+  assert.equal(run('raw', 'sha256:' + '0'.repeat(64)).status, 3);
+  assert.equal(run('raw', '../events.jsonl').status, 2);
+  const bad = mutate(e => e);
+  const fakeHex = 'f'.repeat(64);
+  writeFileSync(join(bad, 'artifacts', 'sha256', fakeHex), '해시와 다른 내용');
+  const tampered = spawnSync(process.execPath, [CLI, 'raw', `sha256:${fakeHex}`, '--bundle', bad, '--json'], { encoding: 'utf8' });
+  assert.equal(tampered.status, 1);
+  assert.equal(JSON.parse(tampered.stdout).error.kind, '규칙 위반');
+  // C3: 선행·후행·독립이 읽기 모델 relations와 같다
+  for (const id of ['T07', 'T03', 'T14']) {
+    const rel = RM.relations(m, id);
+    const got = cli('show', id).data.relations;
+    assert.deepEqual(got.upstream, [...rel.ancestors].sort());
+    assert.deepEqual(got.downstream, [...rel.descendants].sort());
+    assert.deepEqual(got.independent, RM.tasksUnder(m).filter(t => t !== id && !rel.ancestors.has(t) && !rel.descendants.has(t)));
+  }
+  assert.deepEqual(cli('show', 'T07').data.relations.downstream, ['T08', 'T10', 'T14']);
+  // C4: Run 시도와 Agent 회차·수정 횟수를 나눠 싣는다
+  const r = cli('show', 'T03').data.runs[0];
+  assert.deepEqual([r.run_attempt, r.agent_round, r.repairs], [1, 3, 2]);
+  assert.ok(!('attempt' in r) && !('round' in r));
+  assert.equal(cli('agents', 'T07').data.run.run_attempt, 1);
 });
 
 test('집계 엣지 펼치기: 묶인 원본 의존 수가 집계 엣지와 같고, 펼친 그림은 비순환이다', () => {
