@@ -170,5 +170,14 @@
     },
     "approved_at": "2026-11-13",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T20",
+    "contract": "sha256:3d19f29c6587e9d209455ca7c8bb954484b3d060bd5c92aad8f83424aed200ff",
+    "evidence": {
+      "T20-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43368964427 (commit ef42e3c). engine/submit.test.ts \"T20-C1: 추적 파일 수정·삭제와 미추적 파일 생성이 모두 제출 기록에 잡히고, Catena가 그 내용으로 commit을 만든다\", \"T20-C1: write_scope 밖 변경은 제출 기록에서 거부되고, Run은 실패(쓰기 범위)로 끝나며 인수 대상에 들어가지 않는다(Engine 인수 기준 2)\""
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
   }
 ]
