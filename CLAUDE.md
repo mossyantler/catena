@@ -86,7 +86,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `store.ts`: Project 저장소(14-3). Node 내장 `node:sqlite`로 SQLite 파일 하나(WAL)에 소유 Core별 테이블과 append-only `events` 테이블을 둔다. 기본 위치는 `~/.catena/projects/<project_id>/`(`catena.db`, `artifacts/sha256/`)로, 저장소 작업 트리 밖이다.
 - 쓰기는 `tx()`(BEGIN IMMEDIATE)로만 하고, 이벤트는 그 안에서 `append()`로 덧붙인다. seq는 트랜잭션 안에서 매기므로 여러 프로세스가 써도 빈틈이 없다. 불변 기록(계약, Baseline, 제출 기록, 증거, 인수, 승인 요청·결정, 이벤트)은 trigger로 수정·삭제를 거부한다.
 - `events()`는 읽기 모델의 입력 검사(`checkStream`)를 거친 이벤트를, `refCheck`는 산출물 원문 확인을 돌려준다. 그대로 `foldAll`에 넣는다.
-- `commands.ts`: 명령 계층. `execute(store, {command, principal, channel, args, expected_version?})`가 권한(9-1)과 버전을 확인하고, 트랜잭션 안에서 상태 테이블과 이벤트를 쓴 뒤 저장된 이벤트 전체를 읽기 모델로 접어 검사한다. 어기면 아무것도 남기지 않고 `규칙 위반 / 권한 거부 / 버전 충돌 / 대상 없음`을 돌려준다. 성공한 명령은 `commands` 표에 주체·채널과 함께 남는다. 지금 명령은 `plan.import` 하나이고, 계획 이벤트는 `tools/planfold.ts`의 `planEvents`로 만든다(제작 공정 화면과 같은 코드).
+- `commands.ts`: 명령 계층. `execute(store, {command, principal, channel, args, expected_version?})`가 권한(9-1)과 버전을 확인하고, 트랜잭션 안에서 상태 테이블과 이벤트를 쓴 뒤 저장된 이벤트 전체를 읽기 모델로 접어 검사한다. 어기면 아무것도 남기지 않고 `규칙 위반 / 권한 거부 / 버전 충돌 / 대상 없음`을 돌려준다. 성공한 명령은 `commands` 표에 주체·채널과 함께 남는다. 명령은 `plan.import`(계획 이벤트는 `tools/planfold.ts`의 `planEvents`로 만든다, 제작 공정 화면과 같은 코드)와 `run.start`(착수 요청: 내장 Workflow Template을 묶고 Baseline·Run(대기)·Ticket을 한 트랜잭션에 만든다, 6-1)다. Task마다 끝나지 않은 Run이 하나뿐인 것은 `runs`의 부분 유일 인덱스가 지킨다.
 
 **시나리오 생성기** (`scenarios/roombook.build.ts`, `scenarios/expense.build.ts`, 공용 도구 `scenarios/sim.ts`)
 - 결정적이다. `event_id`는 `sha256(dataset:seq)`에서 만들고, 시각은 `at()`으로 정한다. `Date.now()`나 난수를 쓰지 않는다.

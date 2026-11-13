@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS baselines (baseline_id TEXT PRIMARY KEY, payload TEXT
 CREATE TABLE IF NOT EXISTS tickets (ticket_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL);
 -- Execution
 CREATE TABLE IF NOT EXISTS runs (run_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, attempt INTEGER NOT NULL, state TEXT NOT NULL, payload TEXT NOT NULL, UNIQUE (task_id, attempt));
+-- Task마다 끝나지 않은 Run은 하나뿐이다. 여러 프로세스가 동시에 착수를 요청해도 이 유일 제약이 지킨다(6-1)
+CREATE UNIQUE INDEX IF NOT EXISTS runs_one_open ON runs(task_id) WHERE state IN ('대기', '실행 중', '일시 중단', '결과 불명');
 CREATE TABLE IF NOT EXISTS run_leases (run_id TEXT PRIMARY KEY, holder TEXT NOT NULL, expires_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS submissions (submission_id TEXT PRIMARY KEY, run_id TEXT, payload TEXT NOT NULL);
 -- Validation & Acceptance

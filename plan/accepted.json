@@ -97,5 +97,15 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T16",
+    "contract": "sha256:e2b2bf31b97599bb997c7a9eba1995adf0552c8db32dc9e8d426d422902cd570",
+    "evidence": {
+      "T16-C1": "2026-11-13 작업 트리(브랜치 prototype-react-flow, commit 1ec2203 다음 작업 트리)에서 npm test 29개 통과, engine/start.test.ts는 3회 연속 통과. \"C1: 입력 슬롯이 인수되기 전에는 Run이 생기지 않는다(Engine 인수 기준 1)\": A→B 계획에서 B 착수가 E6으로 거부되고 Run·Ticket·Baseline·이벤트(Workflow 묶기 포함)가 남지 않음. A 착수는 Run A-r1(대기)·Ticket(유효)·Baseline 생성, A의 Run이 생겨도 B는 계속 거부",
+      "T16-C2": "2026-11-13 작업 트리(브랜치 prototype-react-flow, commit 1ec2203 다음 작업 트리)에서 npm test 29개 통과, engine/start.test.ts는 3회 연속 통과. \"C2: 여러 프로세스가 같은 Task의 착수를 동시에 요청해도 Run과 예약은 하나만 생긴다(Engine 인수 기준 10)\": 프로세스 4개 동시 요청에 하나만 성공, Run·Ticket·Baseline·run.created 각 1건, 명령 밖 직접 삽입도 runs 부분 유일 인덱스가 거부"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
   }
 ]
