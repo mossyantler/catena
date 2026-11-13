@@ -57,11 +57,11 @@
         },
         {
           "id": "T06", "name": "사용자 시험 진행", "phase": "P3",
-          "goal": "Catena를 처음 보는 참가자 5명 이상에게 Catena 화면과 비교 기준으로 Q1~Q6, Q8 과제를 진행하고 측정표를 채운다",
+          "goal": "명세 v0.10.3과 docs/user-test.md를 사용자 1명 진행으로 고치고(2026-11-13 사용자 결정), 사용자가 Catena 화면과 비교 기준으로 Q1~Q6, Q8 과제를 풀어 측정표를 채운다",
           "inputs": { "test_kit": "T05.test_kit" },
           "outputs": { "results": "측정표" },
           "conditions": [
-            { "id": "T06-C1", "method": "human", "slot": "results", "text": "참가자 5명 이상의 정답률, 탐색 시간, 이동 수, 오해 유형이 docs/user-test.md 형식대로 기록됐다" }
+            { "id": "T06-C1", "method": "human", "slot": "results", "text": "명세 v0.10.3의 1인 진행 방식을 승인하고, 두 블록 14과제의 답, 이동 수, 막힌 지점이 docs/user-test-results.csv에 기록됐다" }
           ]
         },
         {
@@ -70,7 +70,7 @@
           "inputs": { "results": "T06.results" },
           "outputs": { "verdict": "판정 기록", "event_schema": "명세" },
           "conditions": [
-            { "id": "T07-C1", "method": "human", "slot": "verdict", "text": "통과 조건(정답률, 오해 발생률, 탐색 시간 중앙값) 판정 승인(인수 기준 10)" },
+            { "id": "T07-C1", "method": "human", "slot": "verdict", "text": "통과 조건(Catena 화면으로 모든 과제 정답, 기준 경로 초과 과제와 막힌 지점마다 고칠지 결정) 판정 승인(인수 기준 10, v0.10.3)" },
             { "id": "T07-C2", "method": "human", "slot": "event_schema", "text": "ExecutionEvent 형식 확정을 담은 명세 개정 승인" }
           ]
         },

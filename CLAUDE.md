@@ -29,7 +29,7 @@ node tools/plan.ts [--hash <Task ID>]                            # Catena 제작
 tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보기: tailnet 안에서만 https://<기기>.<tailnet>.ts.net:5180 (끄기: --https=5180 off)
 ```
 
-시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따른다.
+시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따르고(사용자 1명, 측정표 `docs/user-test-results.csv`), 결과를 받으면 정답·기준 초과·오해 유형 칸을 같은 문서 4·5절과 대조해 채운다.
 
 코드를 바꾼 뒤 `npm test`, `npm run check`, `npm run lint`를 실행한다. 화면을 바꿨으면 데스크톱(1440px)과 폰(375px), 밝은 모드와 어두운 모드에서 확인한다. 화면 자체의 자동 시험은 없고, 공정표 배치는 `prototype/src/lib/graph.test.ts`가 시험한다. `.claude/launch.json`의 `prototype`(개발 서버)과 `dist`(빌드 결과) 설정이 미리보기 서버를 띄운다.
 
@@ -108,7 +108,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 
 ## 명세 문서
 
-- **최신은 `core_spec_v0.10.2.md`다(상태: 제안).** v0.10.1에서 인수 승인(human 노드)을 human 조건이 있는 Task에만 두도록 바꿨다(조건이 모두 auto면 통과 증거만으로 인수, 읽기 모델 E7과 내장 Template도 같이). v0.10.1은 v0.10에 계획 파일 형식, 출처 값 `plan`, 명령 기록, 저장소 드라이버(`node:sqlite`)와 위치를 더했다. v0.10은 v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
+- **최신은 `core_spec_v0.10.3.md`다(상태: 제안).** v0.10.3은 Product MVP 사용자 시험을 사용자 1명이 진행하도록 바꿨다(2026-11-13 사용자 결정: 처음 보는 참가자를 구할 수 없다. 처음 보는 사람의 이해는 확인하지 못하는 한계를 명세에 적었다). v0.10.2는 v0.10.1에서 인수 승인(human 노드)을 human 조건이 있는 Task에만 두도록 바꿨다(조건이 모두 auto면 통과 증거만으로 인수, 읽기 모델 E7과 내장 Template도 같이). v0.10.1은 v0.10에 계획 파일 형식, 출처 값 `plan`, 명령 기록, 저장소 드라이버(`node:sqlite`)와 위치를 더했다. v0.10은 v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
 - `runner_spec_v0.4.md`: Runner 연결부(Agent 띄우기, stream-json 정규화, 프로세스 그룹, 인증 정책)와 Engine MVP Claude Code Runner 구성. 규칙 자체를 바꾸려면 core spec을 고친다. `runner_security_spec_v0.1~0.3`은 이력이다.
 - `dashboard_interaction_design.md`: 대시보드에서 할 수 있는 조작의 설계 초안(T29). 객체·상태별 조작, 설계 규칙 I1~I13, 열린 질문, 비교 도구 조사. 인수되면 다음 명세 개정에 반영한다.
 - `orchestration_architecture_review.md`: v0.9의 기술 조사(Beads, Gas Town, Gas City, Herdr, LangGraph, ADK, MAF, Coding Agent CLI, MCP·ACP·A2A)와 아키텍처 결정 근거, Spike 목록.
