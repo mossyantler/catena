@@ -991,9 +991,9 @@
     "id": "copy-138",
     "category": "작업 상세",
     "original": "계약",
-    "suggested": "작업 정의",
+    "suggested": "Task 명세",
     "context": "구역 제목",
-    "basis": "copy-024"
+    "basis": "계약→Task 명세(2026-11-13 사용자 결정)"
   },
   {
     "id": "copy-139",
@@ -1006,7 +1006,7 @@
     "id": "copy-140",
     "category": "작업 상세",
     "original": "계약 전문 보기",
-    "suggested": "작업 정의 전체 보기",
+    "suggested": "Task 명세 전체 보기",
     "context": "버튼"
   },
   {
@@ -1279,7 +1279,7 @@
     "id": "copy-178",
     "category": "승인·실행 흐름",
     "original": "검증 정의 참조가 없어 계약과 일치하는지 확인할 수 없음",
-    "suggested": "검사 방법 기록이 없어 작업 정의에 정한 검사인지 확인할 수 없습니다.",
+    "suggested": "검사 방법 기록이 없어 Task 명세에 정한 검사인지 확인할 수 없습니다.",
     "context": "확인 불가능한 이유"
   },
   {
@@ -1672,9 +1672,9 @@
     "id": "copy-231",
     "category": "메뉴·검색·안내",
     "original": "계약이 아직 확정되지 않았습니다(계획 중).",
-    "suggested": "작업 정의가 아직 확정되지 않았습니다(계획 중).",
+    "suggested": "Task 명세가 아직 확정되지 않았습니다(계획 중).",
     "context": "미확정 대상 명시",
-    "basis": "copy-024"
+    "basis": "계약→Task 명세(2026-11-13 사용자 결정)"
   },
   {
     "id": "copy-232",
