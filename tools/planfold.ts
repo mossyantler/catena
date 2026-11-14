@@ -16,6 +16,8 @@ function contractOf(t: any) {
     conditions: t.conditions.map((c: any) => ({ condition_id: c.id, description: c.text, required: true, method: c.method, slot: c.slot, ...(c.verify ? { verifier: c.verify } : {}) })),
     // 쓰기 범위(6-8)는 적었을 때만 넣는다. 없으면 저장소 전체이고, 이미 확정한 계약의 해시도 그대로다
     ...(t.write_scope ? { write_scope: t.write_scope } : {}),
+    // 이 Task를 실행할 Agent 프로그램(없으면 claude-code). 한 계획에서 Task마다 다르게 고른다(v0.10.7)
+    ...(t.agent ? { agent: t.agent } : {}),
   };
 }
 

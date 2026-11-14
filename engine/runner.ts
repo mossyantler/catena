@@ -41,7 +41,7 @@ export const stop = (h: Handle) => realProcs.killGroup(h.pgid);
 export type Draft =
   | { type: 'agent.activity'; payload: { kind: '도구 호출' | '메시지'; summary: string; source: 'Agent 보고' } }
   | { type: 'init'; payload: { model?: string; session_id?: string; apiKeySource?: string } }
-  | { type: 'result'; payload: { ok: boolean; subtype?: string; cost_usd: number; tokens?: number } }
+  | { type: 'result'; payload: { ok: boolean; subtype?: string; cost_usd?: number; tokens?: number } } // cost_usd: 보고하지 않는 Runtime(Codex)은 없음
   | { type: 'rate_limit'; payload: { status?: string } };
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);

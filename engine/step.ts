@@ -9,6 +9,7 @@ import { foldAll } from '../tools/readmodel.ts';
 import { execute, HANDLERS, Refusal } from './commands.ts';
 import { holds, realProcs, recordProcess, renewLease, type Holder } from './supervise.ts';
 import { lines, normalize, prepare, start, stop, type Draft } from './runner.ts';
+import { normalizeCodex, prepareCodex } from './codex.ts';
 import { submit, type Submitted } from './submit.ts';
 import { stopIfExhausted } from './budget.ts';
 import type { Store } from './store.ts';
@@ -82,7 +83,7 @@ HANDLERS['node.finish'] = {
     mustHold(s, run_id, holder);
     if (transcript) emit({ type: 'agent.activity', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, kind: '메시지', summary: 'Runtime 출력 원문(transcript)', source: '시스템 기록', raw_ref: transcript } });
     // Runner가 보고한 비용은 클라이언트 추정치다. 구독 인증이면 청구액이 아니므로 과금 방식을 함께 남긴다(5-7)
-    if (usage) emit({ type: 'usage.recorded', subject: run_id, issuer: 'Resource', payload: { run_id, node_id, cost_usd: usage.cost_usd, tokens: usage.tokens, reliability: '추정값', billing: billing ?? '알 수 없음' } });
+    if (usage) emit({ type: 'usage.recorded', subject: run_id, issuer: 'Resource', payload: { run_id, node_id, cost_usd: usage.cost_usd ?? 0, tokens: usage.tokens, reliability: usage.cost_usd === undefined ? '알 수 없음' : '추정값', billing: billing ?? '알 수 없음' } });
     emit({ type: 'node.finished', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, result } });
   },
 };
@@ -148,7 +149,8 @@ export async function runAgentNode(s: Store, o: {
   const before = stopIfExhausted(s, o.run_id, o.holder);
   if (before) return { result: '중단', exit: null, cancelled: false, paused: before };
   const settings = projectSettings(s);
-  if (!settings.permission_mode) throw new Error('Project 설정에 권한 모드가 없다. project.configure로 정한다(R-3 7)');
+  const runtime: string = JSON.parse((s.db.prepare('SELECT payload FROM tickets WHERE run_id = ?').get(o.run_id) as { payload: string }).payload).profile?.runtime ?? 'claude-code';
+  if (runtime === 'claude-code' && !settings.permission_mode) throw new Error('Project 설정에 권한 모드가 없다. project.configure로 정한다(R-3 7)');
   if (!settings.repo) throw new Error('Project 설정에 git 저장소가 없다. project.configure로 정한다(1-1)');
   const payload = JSON.parse(run.payload);
   const ticket = JSON.parse((s.db.prepare('SELECT payload FROM tickets WHERE run_id = ?').get(o.run_id) as { payload: string }).payload);
@@ -163,8 +165,12 @@ export async function runAgentNode(s: Store, o: {
   s.tx(() => setRun(s, o.run_id, { worktree }));
 
   const model = ticket.profile?.model ?? null;
-  ok(execute(s, { command: 'node.start', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, node_id: o.node_id, iteration: o.iteration, holder: o.holder, profile: { runtime: 'claude-code', model: model ?? '기본값' } } }), 'node.start');
-  const h = start(prepare({ command: o.command, worktree, tmpDir, prompt: promptOf(contract), runId: o.run_id, permissionMode: settings.permission_mode, maxTurns: o.maxTurns ?? 30, model, budgetUsd: ticket.reservation?.budget_usd }));
+  ok(execute(s, { command: 'node.start', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, node_id: o.node_id, iteration: o.iteration, holder: o.holder, profile: { runtime, model: model ?? '기본값' } } }), 'node.start');
+  // Task마다 고른 Agent 프로그램으로 띄운다(v0.10.7). 활동 기록 형식은 같다
+  const h = start(runtime === 'codex'
+    ? prepareCodex({ command: o.command, worktree, tmpDir, prompt: promptOf(contract), model, runId: o.run_id })
+    : prepare({ command: o.command, worktree, tmpDir, prompt: promptOf(contract), runId: o.run_id, permissionMode: settings.permission_mode!, maxTurns: o.maxTurns ?? 30, model, budgetUsd: ticket.reservation?.budget_usd }));
+  const norm = runtime === 'codex' ? normalizeCodex : normalize;
   recordProcess(s, o.run_id, o.holder, { pgid: h.pgid, started_at: h.started_at });
 
   const ids = { run_id: o.run_id, node_id: o.node_id, iteration: o.iteration, holder: o.holder };
@@ -187,7 +193,7 @@ export async function runAgentNode(s: Store, o: {
   }, o.tickMs ?? 1000);
   const raw: Buffer[] = [];
   try {
-    for await (const msg of lines(h, raw)) for (const d of normalize(msg)) {
+    for await (const msg of lines(h, raw)) for (const d of norm(msg)) {
       if (d.type === 'agent.activity') pending.push(d.payload);
       else if (d.type === 'result') resultDraft = d.payload;
       else if (d.type === 'init') billing = !d.payload.apiKeySource ? '알 수 없음' : d.payload.apiKeySource === 'none' ? '구독' : 'API';

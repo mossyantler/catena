@@ -56,6 +56,9 @@ function suppliedCommits(s: Store, m: Model, taskId: string) {
   return { bindings, commits: [...commits] };
 }
 
+/** Engine이 띄울 수 있는 Agent 프로그램(Runner, 14-2, 14-14). */
+export const AGENTS = ['claude-code', 'codex'];
+
 // 계획 파일의 모양만 확인한다. 의존·순환·슬롯 같은 공정 규칙은 읽기 모델이 확인한다(E2~E4, E11).
 function checkPlanShape(plan: any) {
   const no = (msg: string) => { throw new Refusal('규칙 위반', `계획 파일 형식: ${msg}`); };
@@ -66,6 +69,7 @@ function checkPlanShape(plan: any) {
     if (typeof t.id !== 'string' || typeof t.name !== 'string' || typeof t.goal !== 'string') no(`Task에 id·name·goal이 필요하다 (${t.id ?? '?'})`);
     if (!t.outputs || typeof t.outputs !== 'object' || !Array.isArray(t.conditions)) no(`${t.id}: outputs 객체와 conditions 배열이 필요하다`);
     for (const src of Object.values<any>(t.inputs ?? {})) if (typeof src !== 'string' || !/^[^.]+\.[^.]+$/.test(src)) no(`${t.id}: 입력 공급은 "Task.슬롯" 형식이다 (${src})`);
+    if (t.agent !== undefined && !AGENTS.includes(t.agent)) no(`${t.id}: agent는 ${AGENTS.join(' · ')} 가운데 하나다 (${t.agent})`);
     if (t.write_scope !== undefined && (!Array.isArray(t.write_scope) || !t.write_scope.length || !t.write_scope.every((p: any) => typeof p === 'string' && p)))
       no(`${t.id}: write_scope는 경로 패턴(glob) 문자열의 배열이다`);
     for (const c of t.conditions) if (c.verify !== undefined) {
@@ -131,7 +135,7 @@ export const HANDLERS: Record<string, Handler> = {
         ticket_id: `${run_id}-t`, run_id, baseline_id: baseline.baseline_id, principal: cmd.principal,
         allowed: { write_scope: contract.write_scope ?? null, permission_mode: a.permission_mode ?? null },
         policy_decision: { principal: cmd.principal, channel: cmd.channel, result: '허가' }, approvals: [],
-        profile: { runner_ref: a.runner_ref ?? null, model: a.model ?? null, effort: a.effort ?? null },
+        profile: { runtime: contract.agent ?? 'claude-code', runner_ref: a.runner_ref ?? null, model: a.model ?? null, effort: a.effort ?? null },
         reservation: { budget_usd: a.budget_usd ?? null, slots: 1, write_lock: contract.write_scope ?? null },
         expires_at: new Date(now.getTime() + 24 * 3600_000).toISOString(), status: '유효',
       };

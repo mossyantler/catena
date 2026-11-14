@@ -128,11 +128,12 @@ test('E8: dependency 대기 사유는 이벤트로 발행할 수 없다', () => 
 });
 
 test('같은 생성기를 다시 돌리면 같은 이벤트가 나온다', () => {
+  // 임시 폴더에 다시 만들어 비교한다. 제자리에 다시 쓰면 같은 묶음을 읽는 다른 시험과 겹친다
   for (const name of ['roombook', 'expense']) {
-    const hash = () => createHash('sha256').update(readFileSync(join(SCN, name, 'events.jsonl'))).digest('hex');
-    const before = hash();
-    execFileSync(process.execPath, [join(SCN, `${name}.build.ts`)]);
-    assert.equal(hash(), before, name);
+    const out = join(mkdtempSync(join(tmpdir(), 'catena-regen-')), name);
+    const hash = (dir: string) => createHash('sha256').update(readFileSync(join(dir, 'events.jsonl'))).digest('hex');
+    execFileSync(process.execPath, [join(SCN, `${name}.build.ts`)], { env: { ...process.env, CATENA_SCENARIO_OUT: out } });
+    assert.equal(hash(out), hash(join(SCN, name)), name);
   }
 });
 

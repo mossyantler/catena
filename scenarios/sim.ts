@@ -94,8 +94,10 @@ export function scenario(DATASET: string, day0: string) {
     ev('acceptance.recorded', task, CATENA, 'Validation & Acceptance', { acceptance_id: id, scope: slot ? 'slot' : 'task', task_id: task,
       ...(slot ? { slot } : {}), submission_id: sub, condition_ids: conds, evidence_ids: evids, approval_id: approval });
 
-  /** 묶음 폴더를 지우고 새로 쓴다. 기본 재생 위치는 마지막 이벤트다. */
+  /** 묶음 폴더를 지우고 새로 쓴다. 기본 재생 위치는 마지막 이벤트다.
+   *  CATENA_SCENARIO_OUT이 있으면 그 폴더에 쓴다(재생성 시험이 다른 시험이 읽는 묶음을 지우지 않게). */
   function write(out: string, description: string) {
+    out = process.env.CATENA_SCENARIO_OUT ?? out;
     rmSync(out, { recursive: true, force: true });
     mkdirSync(join(out, 'artifacts', 'sha256'), { recursive: true });
     for (const [h, body] of files) writeFileSync(join(out, 'artifacts', 'sha256', h), body);

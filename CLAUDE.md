@@ -100,6 +100,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `accept.ts`: 승인과 검수(7-5, 9-10). 명령 `approval.request`(사용자 확인 조건을 결과에 대해 묻기), `approval.decide`(사람·대화형 CLI `cli-tty`에서만, 결정에 채널과 14-15 한계 문구를 남김), `acceptance.record`(같은 제출 기록의 통과한 근거와 승인으로 결과 항목·Task 검수, Baseline·근거·승인·commit을 함께 기록). CLI는 `catena approve <승인 요청 ID> [--reject --comment 이유] --store 폴더`이고, 터미널에서 확인 입력을 받는다. Runner는 Agent 환경에 `CATENA_RUN_ID`를 넣어 그 안에서 부른 승인을 Runner 채널로 거부한다.
 - `budget.ts`: 예산과 사용 한도(5-1, 5-6, 5-7). 프로젝트 예산 상한(`project.configure`의 `budget_usd`)이 있으면 `run.start`가 남은 예산(상한 - API 사용액 - 정산 전 예약)을 넘는 예약을 거부한다. `stopIfExhausted`는 단계 경계에서 Run의 예약 소진·예산 소진·구독 사용 한도 신호(`rate_limit_event` rejected)를 보고 Run을 `일시 중단`으로 멈추고 자원 대기 사유를 낸다(명령 `run.pause`, 재개는 확장이라 취소 뒤 새 Run). 사용량은 과금 방식(`billing`: API·구독, Runner init의 `apiKeySource`로 판단)과 함께 기록하고, 구독 사용량은 금액 합계에 넣지 않는다.
 - `verify.ts`: Agent 결과 검사(A-6). `runCheckNode`가 검사 노드를 열고 `collectEvidence`로 결과 commit을 새 git worktree(`<저장소 폴더>/checks/<근거 ID>`)에 꺼내 Task 명세의 `verify.command`를 실행한 뒤, 로그·환경·결과를 검수 근거로 남기고(명령 `evidence.record`) checkout을 지운다. 검사 방법이 없는 auto 조건은 `미실행`이다.
+- `codex.ts`: Codex 실행기(T37, 14-14). `prepareCodex`가 `codex exec --json --ephemeral -C <worktree> -s workspace-write -`를 만들고, `normalizeCodex`가 JSONL(끝난 명령 실행·파일 변경·메시지, 턴 끝 토큰)을 Claude Code와 같은 활동 기록 초안으로 바꾼다. 계획 파일 Task의 `agent`(claude-code / codex)가 Ticket의 `profile.runtime`이 되고, `step.ts`가 그것으로 실행기를 고른다. 시험은 `fixtures/fake-codex.mjs`를 쓴다.
 - `step.ts`: Agent 노드 하나 실행. 명령 `project.configure`(권한 모드, 저장소), `run.cancel`(대기면 바로 취소, 실행 중이면 취소 요청), `node.start`·`node.events`·`node.finish`·`run.cancelled`. `runAgentNode`가 Run 전용 worktree(`<저장소 폴더>/worktrees/<run_id>`, Baseline의 base_ref)를 만들고 Runner를 띄워, 주기마다 활동을 기록하고 임대를 연장하고 취소 요청을 확인한다. 끝나면 transcript를 원문으로 저장하고(시스템 기록) 사용량(추정값)과 노드 끝을 남긴다. 시험은 `fixtures/fake-claude.mjs`(같은 stream-json을 내는 가짜 CLI)를 쓴다.
 
 **시나리오 생성기** (`scenarios/roombook.build.ts`, `scenarios/expense.build.ts`, 공용 도구 `scenarios/sim.ts`)
@@ -110,7 +111,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 **시험과 시나리오는 맞물려 있다**
 - `fold.test.ts`는 roombook의 특정 상태(예: T07 `실행 중`, T03 `decision` 대기)를 단정한다.
 - 거부 시험은 묶음을 임시 폴더에 복사해 이벤트를 고친 뒤 실행한다.
-- 재생성 시험은 두 생성기를 그 자리에서 다시 실행해 `events.jsonl` 해시가 그대로인지 본다. 생성기를 고쳤다면 먼저 생성기를 실행해 묶음을 다시 만든 뒤 시험을 돌린다.
+- 재생성 시험은 두 생성기를 임시 폴더(`CATENA_SCENARIO_OUT`)에 다시 실행해 `events.jsonl` 해시가 묶음과 같은지 본다. 제자리에 다시 쓰면 같은 묶음을 읽는 다른 시험과 겹쳐 가끔 실패했다. 생성기를 고쳤다면 먼저 생성기를 실행해 묶음을 다시 만든 뒤 시험을 돌린다.
 - 구조 시험은 ID 대응표(`TO_ROOMBOOK`)로 expense를 roombook ID로 바꿔, 두 묶음의 공정 구조(카드, 차단 이유, 엣지, 집계, 수정 반복, Agent Graph)가 같은지 본다.
 
 ## 명세 문서
