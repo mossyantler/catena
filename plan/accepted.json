@@ -198,5 +198,15 @@
     },
     "approved_at": "2026-11-14",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T37",
+    "contract": "sha256:857396dc63b64e46e28299fee4f9f5b065cf6260328decfee86a19873c191bb8",
+    "evidence": {
+      "T37-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588529883 (commit 1d03fe4). engine/codex.test.ts \"T37-C1: Codex로 띄운 Run도 노드 시작·활동·끝, 원문, Agent 결과 기록이 남고 검사 규칙을 통과한다\"",
+      "T37-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588529883 (commit 1d03fe4). engine/codex.test.ts \"T37-C2: 한 계획에서 A는 Claude Code, B는 Codex로 실행하고, 노드 기록에 어느 Agent 프로그램이 했는지 남는다\""
+    },
+    "approved_at": "2026-11-14",
+    "channel": "CI(auto 조건)"
   }
 ]
