@@ -12,7 +12,8 @@ function contractOf(t: any) {
     task_id: t.id, goal: t.goal,
     input_slots: Object.keys(t.inputs ?? {}).map(name => ({ name, required: true })),
     output_slots: Object.entries(t.outputs).map(([name, kind]) => ({ name, kind, required: true })),
-    conditions: t.conditions.map((c: any) => ({ condition_id: c.id, description: c.text, required: true, method: c.method, slot: c.slot })),
+    // 자동 조건의 검사 방법(검증 정의, 7-7)은 적었을 때만 넣는다. 명세 원문에 들어가 해시로 고정된다
+    conditions: t.conditions.map((c: any) => ({ condition_id: c.id, description: c.text, required: true, method: c.method, slot: c.slot, ...(c.verify ? { verifier: c.verify } : {}) })),
     // 쓰기 범위(6-8)는 적었을 때만 넣는다. 없으면 저장소 전체이고, 이미 확정한 계약의 해시도 그대로다
     ...(t.write_scope ? { write_scope: t.write_scope } : {}),
   };
@@ -27,6 +28,9 @@ export function planTasks(plan: any): any[] {
 
 /** Task별 계약 원문(JSON). 계약 해시와 계약 전문 보기에 쓴다. */
 export const contractTexts = (plan: any) => new Map(planTasks(plan).map(t => [t.id, JSON.stringify(contractOf(t))]));
+/** 검증 정의 원문(내용 해시 산출물). 조건의 verifier_ref가 이것을 가리킨다. */
+export const verifierTexts = (plan: any): string[] => planTasks(plan).flatMap(t => t.conditions.filter((c: any) => c.verify).map((c: any) => JSON.stringify(c.verify)));
+const withVerifierRef = (c: any, sha: Sha) => (c.verifier ? { ...c, verifier_ref: { kind: 'artifact', id: `sha256:${sha(JSON.stringify(c.verifier))}`, version: 1 } } : c);
 
 export function planEvents(plan: any, sha: Sha) {
   const events: Event[] = [];
@@ -43,7 +47,10 @@ export function planEvents(plan: any, sha: Sha) {
   walk(plan.wbs, null);
   const texts = contractTexts(plan);
   const tasks = planTasks(plan);
-  for (const t of tasks) push('contract.confirmed', t.id, { ...contractOf(t), contract_ref: { kind: 'artifact', id: `sha256:${sha(texts.get(t.id)!)}`, version: 1 } });
+  for (const t of tasks) {
+    const c = contractOf(t);
+    push('contract.confirmed', t.id, { ...c, conditions: c.conditions.map((x: any) => withVerifierRef(x, sha)), contract_ref: { kind: 'artifact', id: `sha256:${sha(texts.get(t.id)!)}`, version: 1 } });
+  }
   for (const t of tasks) for (const [slot, src] of Object.entries<string>(t.inputs ?? {})) {
     const [task_id, from] = src.split('.');
     push('dependency.linked', t.id, { from: { task_id, slot: from }, to: { task_id: t.id, slot } });
@@ -78,7 +85,7 @@ export function acceptAll(m: Model, accepted: any[], contractHash: (id: string) 
 
 export function foldPlan(plan: any, accepted: any[], sha: Sha) {
   const { events, contractHash } = planEvents(plan, sha);
-  const known = new Set([...contractTexts(plan).values()].map(sha));
+  const known = new Set([...contractTexts(plan).values(), ...verifierTexts(plan)].map(sha));
   const m = foldAll(events, r => known.has(r.id.slice(7)) ? undefined : '계약 원문 없음');
   acceptAll(m, accepted, contractHash);
   return { model: m, events, contractHash };

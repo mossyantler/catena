@@ -193,7 +193,8 @@ export async function runAgentNode(s: Store, o: {
   const result: StepResult['result'] = cancelled ? '중단' : exit === 0 && resultDraft?.ok ? '성공' : '실패';
   // 프로세스 그룹이 끝난 것을 확인한 뒤 결과를 고정한다(6-8). 취소된 단계의 결과는 제출하지 않는다
   const submission = cancelled ? undefined : submit(s, { run_id: o.run_id, node_id: o.node_id, holder: o.holder, worktree, base_ref: baseline.base_ref,
-    write_scope: ticket.allowed?.write_scope ?? null, output_slots: contract.output_slots.map((x: any) => x.name) });
+    write_scope: ticket.allowed?.write_scope ?? null, output_slots: contract.output_slots.map((x: any) => x.name),
+    verifier_files: contract.conditions.flatMap((c: any) => c.verifier?.files ?? []) });
   ok(execute(s, { command: 'node.finish', principal: SYSTEM, channel: 'runner', args: { ...ids, result, transcript,
     usage: resultDraft ? { cost_usd: resultDraft.cost_usd, tokens: resultDraft.tokens } : undefined } }), 'node.finish');
   if (cancelled) ok(execute(s, { command: 'run.cancelled', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, holder: o.holder } }), 'run.cancelled');

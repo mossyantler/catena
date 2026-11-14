@@ -67,11 +67,12 @@ HANDLERS['submission.create'] = {
 export type Submitted = { submission_id: string; scope_check: '통과' | '거부'; commit: string | null; changes: Change[]; rejected: string[] };
 
 /** 6-8 ②③④. 노드가 아직 실행 중일 때 부른다(제출 기록은 그 노드의 결과다, E5). */
-export function submit(s: Store, o: { run_id: string; node_id: string; holder: Holder; worktree: string; base_ref: string; write_scope: string[] | null; output_slots: string[] }): Submitted {
+export function submit(s: Store, o: { run_id: string; node_id: string; holder: Holder; worktree: string; base_ref: string; write_scope: string[] | null; output_slots: string[]; verifier_files?: string[] }): Submitted {
   const n = (s.db.prepare('SELECT COUNT(*) AS n FROM submissions WHERE run_id = ?').get(o.run_id) as { n: number }).n;
   const submission_id = `${o.run_id}-s${n + 1}`; // 수정 반복마다 새 제출 기록
   const { tree, changes, diff } = snapshot(o.worktree, o.base_ref);
-  const rejected = changes.map(c => c.path).filter(p => !inScope(p, o.write_scope));
+  // 검사 파일(검증 정의 경로)은 Agent가 바꿀 수 없는 범위다(7-7)
+  const rejected = changes.map(c => c.path).filter(p => !inScope(p, o.write_scope) || o.verifier_files?.includes(p));
   const commit = rejected.length ? null : commitOf(o.worktree, tree, o.base_ref, submission_id); // 거부된 제출 기록은 commit하지 않는다
   const r = execute(s, { command: 'submission.create', principal: { kind: 'system', id: 'orchestrator' }, channel: 'runner', args: {
     run_id: o.run_id, node_id: o.node_id, holder: o.holder, submission_id, base_ref: o.base_ref, commit, changes, rejected,

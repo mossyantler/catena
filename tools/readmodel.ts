@@ -158,6 +158,7 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
         need(!ids.has(c.condition_id), 'E4', `조건 ID 중복 ${c.condition_id}`); ids.add(c.condition_id);
         need(!c.slot || outs.has(c.slot), 'E4', `조건 ${c.condition_id}의 슬롯 ${c.slot}이 계약에 없다`);
         need(['auto', 'review', 'human'].includes(c.method), 'E4', `검증 방법 오류 ${c.method}`);
+        if (c.verifier_ref) ref(c.verifier_ref);
       }
       m.contracts.set(p.task_id, p);
       n.lifecycle = '활성';
@@ -333,7 +334,11 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
       const ev = p.evidence_ids.map((id: string) => m.evidence.get(id));
       need(ev.every((x: any) => x && x.submission_id === p.submission_id && x.result === '통과'), 'E7', '증거가 같은 제출 기록의 통과 결과가 아니다');
       for (const cd of conds) {
-        if (cd.method === 'auto') need(ev.some((x: any) => x.condition_id === cd.condition_id), 'E7', `자동 조건 ${cd.condition_id}의 증거 없음`);
+        if (cd.method === 'auto') {
+          need(ev.some((x: any) => x.condition_id === cd.condition_id), 'E7', `자동 조건 ${cd.condition_id}의 증거 없음`);
+          // 검증 정의가 계약에 고정돼 있으면 같은 검증 정의로 실행한 증거만 근거가 된다(7-3, 7-7)
+          if (cd.verifier_ref) need(ev.some((x: any) => x.condition_id === cd.condition_id && x.verifier_ref?.id === cd.verifier_ref.id), 'E7', `자동 조건 ${cd.condition_id}의 검증 정의가 계약과 다르다`);
+        }
         else need(a.condition_ids.includes(cd.condition_id), 'E7', `사람 조건 ${cd.condition_id}이 승인 범위에 없음`);
       }
       const scoped = (slot?: string) => c.conditions.filter((x: any) => x.required && (x.slot ?? null) === (slot ?? null)).map((x: any) => x.condition_id);

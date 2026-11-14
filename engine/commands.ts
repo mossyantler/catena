@@ -4,7 +4,7 @@
 // 하나라도 어기면 아무것도 남기지 않고 이유(규칙 위반 / 권한 거부 / 버전 충돌 / 대상 없음)를 돌려준다.
 import { createHash } from 'node:crypto';
 import { foldAll, RuleError, type Event, type Model, type Ref } from '../tools/readmodel.ts';
-import { contractTexts, planEvents, planTasks } from '../tools/planfold.ts';
+import { contractTexts, planEvents, planTasks, verifierTexts } from '../tools/planfold.ts';
 import type { Store } from './store.ts';
 
 export type Principal = { kind: 'human' | 'agent' | 'system'; id: string };
@@ -68,6 +68,12 @@ function checkPlanShape(plan: any) {
     for (const src of Object.values<any>(t.inputs ?? {})) if (typeof src !== 'string' || !/^[^.]+\.[^.]+$/.test(src)) no(`${t.id}: 입력 공급은 "Task.슬롯" 형식이다 (${src})`);
     if (t.write_scope !== undefined && (!Array.isArray(t.write_scope) || !t.write_scope.length || !t.write_scope.every((p: any) => typeof p === 'string' && p)))
       no(`${t.id}: write_scope는 경로 패턴(glob) 문자열의 배열이다`);
+    for (const c of t.conditions) if (c.verify !== undefined) {
+      const v = c.verify;
+      if (c.method !== 'auto') no(`${c.id}: 검사 방법(verify)은 auto 조건에만 적는다`);
+      if (!v || typeof v.command !== 'string' || !v.command.trim() || (v.files !== undefined && (!Array.isArray(v.files) || !v.files.every((f: any) => typeof f === 'string' && f))))
+        no(`${c.id}: verify는 {command: 실행할 명령, files?: 보호할 검사 파일 경로[]}이다`);
+    }
   }
 }
 
@@ -125,7 +131,7 @@ export const HANDLERS: Record<string, Handler> = {
     principals: ['human'],
     prepare: (s, cmd) => {
       checkPlanShape(cmd.args?.plan);
-      for (const text of contractTexts(cmd.args.plan).values()) s.putArtifact(text);
+      for (const text of [...contractTexts(cmd.args.plan).values(), ...verifierTexts(cmd.args.plan)]) s.putArtifact(text);
     },
     run: (s, cmd, _p, emit) => {
       const plan = cmd.args.plan;
