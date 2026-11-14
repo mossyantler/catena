@@ -164,7 +164,7 @@ export async function runAgentNode(s: Store, o: {
 
   const model = ticket.profile?.model ?? null;
   ok(execute(s, { command: 'node.start', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, node_id: o.node_id, iteration: o.iteration, holder: o.holder, profile: { runtime: 'claude-code', model: model ?? '기본값' } } }), 'node.start');
-  const h = start(prepare({ command: o.command, worktree, tmpDir, prompt: promptOf(contract), permissionMode: settings.permission_mode, maxTurns: o.maxTurns ?? 30, model, budgetUsd: ticket.reservation?.budget_usd }));
+  const h = start(prepare({ command: o.command, worktree, tmpDir, prompt: promptOf(contract), runId: o.run_id, permissionMode: settings.permission_mode, maxTurns: o.maxTurns ?? 30, model, budgetUsd: ticket.reservation?.budget_usd }));
   recordProcess(s, o.run_id, o.holder, { pgid: h.pgid, started_at: h.started_at });
 
   const ids = { run_id: o.run_id, node_id: o.node_id, iteration: o.iteration, holder: o.holder };

@@ -14,9 +14,11 @@ import * as RM from './readmodel.ts';
 import { defaultStoreDir, openStore } from '../engine/store.ts';
 import { execute, type Reason } from '../engine/commands.ts';
 import { recoverExpired } from '../engine/supervise.ts';
+import '../engine/accept.ts';
+import { createInterface } from 'node:readline/promises';
 
 export const CLI_SCHEMA = 2; // 2: run_attempt·agent_round·repairs, 승인 범위, show의 relations, raw 명령(T27)
-const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더]';
+const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더';
 const EXIT: Record<Reason, number> = { '규칙 위반': 1, '대상 없음': 3, '권한 거부': 4, '버전 충돌': 5 };
 class CliError extends Error {
   kind: string; code: number;
@@ -200,6 +202,28 @@ function planImport(args: string[], storeDir: string | undefined, json: boolean)
   } finally { s.close(); }
 }
 
+// approve: 승인·반려는 대화형 터미널에서 확인 입력을 받아야 한다(9-10). 파이프·--json·Runner 안(CATENA_RUN_ID)에서 부르면
+// 그 채널 그대로 명령에 넘겨 명령 계층이 거부한다. 같은 사용자 권한의 Agent가 터미널을 흉내 내는 것은 막지 않는다(14-15)
+async function approve(args: string[], storeDir: string | undefined, json: boolean, reject: boolean, comment: string | undefined) {
+  const [id] = args;
+  if (!id || !storeDir) throw new CliError('사용법 오류', 2, USAGE);
+  const channel = process.env.CATENA_RUN_ID ? 'runner' : process.stdin.isTTY && process.stdout.isTTY && !json ? 'cli-tty' : 'cli-batch';
+  const decision = reject ? '반려' : '승인';
+  if (channel === 'cli-tty') {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const answer = await rl.question(`승인 요청 ${id}을(를) ${decision}합니다. 계속하려면 '${decision}'을 입력하세요: `);
+    rl.close();
+    if (answer.trim() !== decision) throw new CliError('사용법 오류', 2, '확인 입력이 달라 아무것도 하지 않았다');
+  }
+  const s = openStore(storeDir);
+  try {
+    recoverExpired(s);
+    const r = execute(s, { command: 'approval.decide', principal: { kind: 'human', id: 'user' }, channel, args: { approval_id: id, decision, comment } });
+    if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
+    return { approval_id: id, decision, channel, version: r.version };
+  } finally { s.close(); }
+}
+
 function main(argv: string[]) {
   const opt = (name: string) => { const i = argv.indexOf(name); if (i < 0) return undefined; const v = argv[i + 1]; argv.splice(i, 2); return v; };
   const json = argv.includes('--json');
@@ -207,8 +231,24 @@ function main(argv: string[]) {
   const bundle = opt('--bundle') ?? join(import.meta.dirname, '..', 'scenarios', 'roombook');
   const storeDir = opt('--store');
   const atArg = opt('--at');
+  const comment = opt('--comment');
+  const reject = argv.includes('--reject');
+  if (reject) argv.splice(argv.indexOf('--reject'), 1);
   const [cmd, ...args] = argv;
   let source: any = null;
+  const fail = (err: unknown) => {
+    if (!(err instanceof CliError)) throw err;
+    if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: cmd ?? null, source, error: { kind: err.kind, message: err.message } }, null, 2));
+    else console.error(`${err.kind}: ${err.message}`);
+    process.exitCode = err.code;
+  };
+  if (cmd === 'approve') {
+    approve(args, storeDir, json, reject, comment).then(data => {
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'approve', source: { origin: 'live', store: storeDir }, data }, null, 2));
+      else console.log(`승인 요청 ${data.approval_id}: ${data.decision} (채널 ${data.channel}, 버전 ${data.version}). 같은 사용자 권한의 Agent도 이 채널을 흉내 낼 수 있다(14-15)`);
+    }, fail);
+    return;
+  }
   try {
     if (cmd === 'plan') {
       const data = planImport(args, storeDir, json);
@@ -229,10 +269,7 @@ function main(argv: string[]) {
     else if (cmd === 'raw') process.stdout.write(data.text);
     else console.log(`[${source.origin}] ${source.dataset_id ?? storeDir} · 재생 위치 ${source.position} / ${source.total}\n${text(cmd, data)}`);
   } catch (err) {
-    if (!(err instanceof CliError)) throw err;
-    if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: cmd ?? null, source, error: { kind: err.kind, message: err.message } }, null, 2));
-    else console.error(`${err.kind}: ${err.message}`);
-    process.exitCode = err.code;
+    fail(err);
   }
 }
 

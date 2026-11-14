@@ -8,7 +8,7 @@ export type LaunchSpec = { command: string[]; argv: string[]; env: NodeJS.Proces
 
 /** R-4 prepare. command는 실행 파일과 앞쪽 인자다(기본 ['claude'], 시험에서는 가짜 CLI). */
 export function prepare(x: {
-  command?: string[]; worktree: string; tmpDir: string; prompt: string;
+  command?: string[]; worktree: string; tmpDir: string; prompt: string; runId?: string;
   permissionMode: string; maxTurns: number; model?: string | null; budgetUsd?: number | null;
 }): LaunchSpec {
   const argv = [
@@ -19,7 +19,8 @@ export function prepare(x: {
     ...(x.budgetUsd ? ['--max-budget-usd', (x.budgetUsd * 0.9).toFixed(2)] : []),
   ];
   // 사용자 환경을 그대로 상속한다. 바꾸는 것은 Run 전용 TMPDIR과 백그라운드 대기 상한뿐이다(R-6.1)
-  const env = { ...process.env, TMPDIR: x.tmpDir, CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: '5000' };
+  // CATENA_RUN_ID: Agent 안에서 catena를 부르면 Runner 채널로 알아본다(승인 거부, 9-10)
+  const env = { ...process.env, TMPDIR: x.tmpDir, CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: '5000', ...(x.runId ? { CATENA_RUN_ID: x.runId } : {}) };
   return { command: x.command ?? ['claude'], argv, env, cwd: x.worktree, stdin: x.prompt };
 }
 

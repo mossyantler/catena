@@ -45,7 +45,9 @@ export function ApprovalPage({ id }: { id: string }) {
               )),
             ],
             ['검토할 제출 기록', <><span className="font-mono">{a.submission_id}</span>. 승인은 이 제출 기록에만 적용됩니다. 이후 고친 결과는 다시 승인해야 합니다.</>],
-            ...(a.decision ? ([['결정', `${a.decision} · ${when(a.decided)} · ${a.comment ?? ''}`]] as [string, string][]) : []),
+            ...(a.decision ? ([['결정', `${a.decision} · ${when(a.decided)}${a.channel ? ` · ${a.channel === 'cli-tty' ? '대화형 CLI' : a.channel}` : ''} · ${a.comment ?? ''}`]] as [string, string][]) : []),
+            // 14-15: 같은 사용자 권한의 Agent도 이 채널을 흉내 낼 수 있다. 막지 않고 한계로 보인다
+            ...(a.channel_note ? ([['승인 채널의 한계', a.channel_note]] as [string, string][]) : []),
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">

@@ -316,6 +316,8 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
       a.decision = p.decision;
       a.comment = p.comment;
       a.decided = e.occurred_at;
+      a.channel = p.channel; // 승인을 받은 채널과 그 한계(9-10, 14-15)
+      a.channel_note = p.channel_note;
       m.waits.get(`approval:${p.approval_id}`)!.open = false;
       break;
     }
