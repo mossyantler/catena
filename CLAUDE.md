@@ -15,7 +15,7 @@ Catena는 AI 개발 과정을 사람이 이해할 수 있는 공정(작업 단�
 
 ```bash
 npm run dev                                                      # 시안 보기: http://127.0.0.1:5180 (고치면 바로 반영)
-npm run copy-review                                              # 문구 첨삭: http://127.0.0.1:5182/?review=copy
+npm run copy-review                                              # 문구 첨삭 ?review=copy, 검수표 ?review=accept (포트 5182)
 npm test                                                         # 전체 시험(tools/*.test.ts, engine/*.test.ts, prototype/src/**/*.test.ts)
 npm run check                                                    # 타입 검사(tsc -b, 화면과 Node 코드 둘 다)
 npm run lint                                                     # oxlint + @shadcn/lint 디자인 규칙
@@ -51,7 +51,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
   3. 완료 조건마다 증거를 모은다. `auto` 조건의 증거는 push한 commit에서 GitHub Actions `check`(`.github/workflows/check.yml`: `npm test`, `npm run check`, `npm run lint`, `npm run build`)가 통과한 실행이다. Agent가 자기 세션에서 돌린 검사는 확인용일 뿐 증거가 아니다(0-4).
   4. 인수는 조건의 종류로 정한다(2026-11-13 사용자 결정). Agent는 자기 보고로 인수하지 않는다.
      - **조건이 모두 `auto`인 Task:** 작업을 커밋·push하고 그 commit의 CI가 통과하면, 실행 URL과 commit을 증거로 `accepted.json`에 적는다(`channel: "CI(auto 조건)"`). 사용자에게 묻지 않고 결과만 알린다. 사용자는 Milestone 병합 때 PR로 한꺼번에 검토한다.
-     - **`human` 조건이 하나라도 있는 Task:** 사용자에게 그 조건의 산출물과 증거를 보이고, 승인한 때만 적는다.
+     - **`human` 조건이 하나라도 있는 Task:** 사용자에게 그 조건의 산출물과 증거를 보이고, 승인한 때만 적는다. 사용자는 대화에서 승인하거나 검수표(`https://<기기>.<tailnet>.ts.net:5182/?review=accept`, T36)에 결정을 남긴다. 검수표의 결정은 `~/.catena/reviews/acceptance.json`에 있고, 승인이면 그 결정(시각·메모)을 증거로 `channel: "검수표"`로 적는다. 사용자 시험 측정표도 검수표에서 채운다.
      - CI가 실패하면 인수하지 않고 고친다.
   5. 커밋과 push(2026-11-12 사용자 결정). 작업을 커밋·push해 CI를 돌리고, 인수 기록은 CI가 통과한 뒤(human 조건이 있으면 사용자 승인까지 받은 뒤) 다음 커밋으로 넣는다. `auto` 조건이 하나도 없는 Task는 작업과 인수 기록을 한 커밋에 넣어도 된다.
   6. PR은 Task마다 새로 열지 않는다. 열려 있는 PR 하나에 인수된 커밋을 계속 쌓고, Milestone에 도달하면 병합을 제안한다. 병합은 사용자가 한다(2026-11-13 사용자 결정). 열린 PR이 없으면 그때 하나 연다.

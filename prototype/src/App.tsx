@@ -18,6 +18,7 @@ import { ProjectsPage } from '@/pages/projects'
 import { TaskPage } from '@/pages/task'
 
 const CopyReviewPage = lazy(() => import('@/pages/copy-review'))
+const AcceptancePage = lazy(() => import('@/pages/acceptance'))
 
 function Screen() {
   const hash = useHash()
@@ -46,6 +47,8 @@ function Screen() {
 }
 
 export default function App() {
+  if (new URLSearchParams(location.search).get('review') === 'accept')
+    return <Suspense fallback={<main className="p-6">검수표를 불러오고 있습니다.</main>}><AcceptancePage /></Suspense>
   if (new URLSearchParams(location.search).get('review') === 'copy')
     return <Suspense fallback={<main className="p-6">첨삭 화면을 불러오고 있습니다.</main>}><CopyReviewPage /></Suspense>
   // ?data=가 없으면 프로젝트 목록을 연다
