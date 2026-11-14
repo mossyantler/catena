@@ -1,4 +1,4 @@
-// 명령 계층과 계획 불러오기 시험(T14): 규칙을 어긴 명령은 상태와 이벤트를 남기지 않는다(C1),
+// 명령 처리와 계획 불러오기 시험(T14): 규칙을 어긴 명령은 상태와 이벤트를 남기지 않는다(C1),
 // plan/catena.plan.json을 불러와 만든 읽기 모델이 tools/plan.ts의 결과와 같다(C2).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

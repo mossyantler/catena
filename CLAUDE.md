@@ -44,7 +44,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - **인수 기록**: `plan/accepted.json`. 인수한 순서대로 쌓는다. 항목은 `task_id`, `contract`(인수 시점의 계약 해시, `node tools/plan.ts --hash <Task>`), `evidence`(조건 ID마다 증거: CI 실행 URL과 commit, 사용자가 본 산출물), `approved_at`, `channel`(`CI(auto 조건)` 또는 `Claude Code 대화`)이다.
 - **검사**: `tools/planfold.ts`가 계획을 계획 이벤트로 바꿔 읽기 모델 검사 규칙(E2~E4, E11)을 거치고, 인수 기록마다 입력 슬롯이 먼저 인수됐는지, 조건마다 증거가 있는지, 계약 해시가 같은지 확인한다. `node tools/plan.ts`(글), 화면(`?data=catena`), `npm test`가 모두 이 코드를 쓴다.
 - **화면**: `plan/dataset.json`이 `origin: "plan"`으로 계획 파일과 인수 기록을 가리키고, `prototype/public/data/catena`가 `plan/`을 가리킨다. 사람 인수는 이벤트가 아니므로 접은 모델에 따로 더하고(`Bundle.accept`), Task 상세의 근거 칸에 인수 기록의 증거를 보인다.
-- **Task 부르기:** 사용자에게 Task를 말할 때는 ID만 쓰지 않고 `T14: 명령 계층과 계획 불러오기`처럼 "ID: 이름"으로 쓴다(2026-11-13 사용자 요청). 착수 가능 목록, 인수 요청, 다음 Task 제안 모두 같다.
+- **Task 부르기:** 사용자에게 Task를 말할 때는 ID만 쓰지 않고 `T14: 명령 처리와 계획 불러오기 구현`처럼 "ID: 이름"으로 쓴다(2026-11-13 사용자 요청). 착수 가능 목록, 인수 요청, 다음 Task 제안 모두 같다.
 - **진행 순서**
   1. `node tools/plan.ts`로 착수 가능한 Task를 확인한다. 사용자가 고르지 않았으면 어느 Task를 하는지 먼저 말한다.
   2. 그 Task의 계약(목표, 완료 조건) 안에서만 일한다. 계약 밖의 일이 필요하면 먼저 계획을 고친다.

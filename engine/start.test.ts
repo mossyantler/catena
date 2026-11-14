@@ -1,4 +1,4 @@
-// 착수 판정과 예약 시험(T16): 입력 슬롯이 인수되기 전에는 Run이 생기지 않는다(C1, Engine 인수 기준 1),
+// Task 시작 요청 처리 시험(T16): 입력 슬롯이 인수되기 전에는 Run이 생기지 않는다(C1, Engine 인수 기준 1),
 // 두 프로세스가 같은 Task의 착수를 동시에 요청해도 Run과 예약은 하나만 생긴다(C2, Engine 인수 기준 10).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

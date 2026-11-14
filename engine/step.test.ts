@@ -1,4 +1,4 @@
-// Claude Code Runner와 Agent 노드 실행 시험(T19). 실제 claude 대신 같은 stream-json을 내는 가짜 CLI를 쓴다.
+// Claude Code 실행기와 Agent 노드 실행 시험(T19). 실제 claude 대신 같은 stream-json을 내는 가짜 CLI를 쓴다.
 // C1: Run 하나를 띄우면 노드 시작·활동·끝 이벤트와 transcript가 남고 검사 규칙을 통과한다. 다른 인터페이스에서 취소하면
 //     프로세스 그룹이 끝난다(Engine 인수 기준 13). C2: Agent 보고는 증거가 되지 않고 공식 상태를 바꾸지 않는다.
 import { test } from 'node:test';
