@@ -179,5 +179,15 @@
     },
     "approved_at": "2026-11-13",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T21",
+    "contract": "sha256:714fa4c6f83e4ec31a57ea3bf5cf17d1dbf8e3d7e975573aa895debcd12204c1",
+    "evidence": {
+      "T21-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43578438629 (commit a1b93cb). engine/verify.test.ts \"T21-C1: 새 checkout에서 Task 명세의 검사 방법으로 검사하고, 검사 방법이 없는 필수 조건은 미실행으로 남아 검수가 거부된다\", \"T21-C1: Agent가 검사 파일을 바꾸면 결과 기록 단계에서 거부되어 검사도 검수도 하지 않는다\"",
+      "T21-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43578438629 (commit a1b93cb). engine/verify.test.ts \"T21-C2: Agent가 \\\"테스트 통과\\\"라고 보고해도 검수 근거 없이는, 또 검사가 실패하면 검수되지 않는다. 통과한 근거로만 검수된다\""
+    },
+    "approved_at": "2026-11-14",
+    "channel": "CI(auto 조건)"
   }
 ]
