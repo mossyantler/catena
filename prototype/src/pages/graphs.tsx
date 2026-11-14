@@ -213,9 +213,11 @@ export function DagPage({ id: idArg }: { id?: string }) {
           <Button asChild size="sm">
             <a href={`#task-${sel}`}>Task 상세</a>
           </Button>
-          <Button asChild size="sm" variant="outline">
-            <a href={`#agent-${sel}`}>Agent 그래프</a>
-          </Button>
+          {model.workflows.has(sel) ? (
+            <Button asChild size="sm" variant="outline">
+              <a href={`#agent-${sel}`}>Agent 그래프</a>
+            </Button>
+          ) : null}
           <Button size="sm" variant="ghost" onClick={() => setPicked(null)}>
             선택 해제
           </Button>
@@ -233,11 +235,18 @@ export function DagPage({ id: idArg }: { id?: string }) {
 
 // ---------------- Agent Graph ----------------
 export function AgentPage({ id }: { id: string }) {
-  const { model, node } = useCatena()
+  const { model, node, bundle } = useCatena()
   const n = node(id)
   const wf = model.workflows.get(id)
   const [picked, setPicked] = useState<string | null>(null)
-  if (!n || !wf) return <Notice>Agent 그래프가 없는 Task입니다.</Notice>
+  if (!n || !wf)
+    return (
+      <Notice>
+        {bundle.manifest.origin === 'plan'
+          ? '이 Task는 Catena 밖의 Coding Agent 세션에서 작업해서 Agent 그래프가 기록되지 않았습니다.'
+          : '아직 시작하지 않은 Task라 Agent 그래프가 없습니다. 시작하면 워크플로우 템플릿이 정해지고 그래프가 생깁니다.'}
+      </Notice>
+    )
   const g = RM.agentGraph(model, id)
   const run = g.run
   const sel: string = picked && wf.nodes.has(picked) ? picked : (g.nodes.find((x: any) => run?.active.has(x.node_id)) ?? g.nodes[0]).node_id

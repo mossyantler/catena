@@ -77,9 +77,12 @@ function TaskDetail({ id }: { id: string }) {
         tabTitle={`${id} ${n.name}`}
         actions={
           <>
-            <Button asChild>
-              <a href={`#agent-${id}`}>Agent 그래프</a>
-            </Button>
+            {/* Agent 그래프는 Task를 시작할 때 워크플로우가 정해져야 생긴다(6-1) */}
+            {model.workflows.has(id) ? (
+              <Button asChild>
+                <a href={`#agent-${id}`}>Agent 그래프</a>
+              </Button>
+            ) : null}
             {openAppr.map((a) => (
               <Button key={a.approval_id} asChild variant="outline">
                 <a href={`#approval-${a.approval_id}`}>승인 요청 {a.approval_id} 열기</a>
