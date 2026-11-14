@@ -184,7 +184,7 @@ export function DagPage({ id: idArg }: { id?: string }) {
     onSelect: () => setPicked((s) => (s === t ? null : t)),
     pressed: t === sel,
     emphasis: t === sel ? ['selected'] : rel ? ['related'] : [],
-    content: <TaskNodeContent id={t} tag={relTag(t) ?? (!sel && top > 0 && blockers.get(t) === top ? '뒤를 가장 많이 막음' : undefined)} />,
+    content: <TaskNodeContent id={t} tag={relTag(t) ?? (!sel && top > 0 && blockers.get(t) === top ? '후행 Task 대기 가장 많음' : undefined)} />,
   }))
   const ready = ids.filter((t) => RM.card(model, t).rep === '착수 가능')
   return (

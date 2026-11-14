@@ -111,7 +111,7 @@ HANDLERS['run.fail'] = {
     s.db.prepare('DELETE FROM run_leases WHERE run_id = ?').run(run_id);
     emit({ type: 'run.state_changed', subject: run_id, issuer: 'Execution', payload: { run_id, to: '실패', reason } });
     emit({ type: 'wait.raised', subject: r.task_id, issuer: 'Execution', payload: { wait_id: `W-${run_id}-decision`, wait_type: 'decision', target_id: r.task_id,
-      resolve_condition: '사용자가 다음 진행을 정함', action: { actor: '사용자', text: action, screen: 'Task 상세' } } });
+      resolve_condition: '다음 진행을 사용자가 정해야 함', action: { actor: '사용자', text: action, screen: 'Task 상세' } } });
   },
 };
 
@@ -199,6 +199,6 @@ export async function runAgentNode(s: Store, o: {
   if (cancelled) ok(execute(s, { command: 'run.cancelled', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, holder: o.holder } }), 'run.cancelled');
   // 쓰기 범위 밖 변경: Run을 실패(쓰기 범위)로 닫는다. 다음 시도는 새 Run과 새 worktree로 한다(6-8 ③)
   if (submission?.scope_check === '거부') ok(execute(s, { command: 'run.fail', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, holder: o.holder,
-    reason: '쓰기 범위', action: `쓰기 범위 밖 변경(${submission.rejected.join(', ')})을 보고 새 시도를 시작할지 결정` } }), 'run.fail');
+    reason: '쓰기 범위', action: `쓰기 범위 밖 변경(${submission.rejected.join(', ')})을 보고 다시 실행할지 결정` } }), 'run.fail');
   return { result, exit, cancelled, submission };
 }

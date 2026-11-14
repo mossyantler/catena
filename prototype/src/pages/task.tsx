@@ -51,7 +51,7 @@ export function TaskPage({ id }: { id: string }) {
     return (
       <>
         <PageHeader title={<><Tid id={id} /> {n.name}</>} tabTitle={`${id} ${n.name}`} />
-        <Notice>계약이 아직 확정되지 않았습니다(계획 중).</Notice>
+        <Notice>Task 명세가 아직 확정되지 않았습니다(계획 중).</Notice>
       </>
     )
   return <TaskDetail id={id} />
@@ -82,11 +82,11 @@ function TaskDetail({ id }: { id: string }) {
             </Button>
             {openAppr.map((a) => (
               <Button key={a.approval_id} asChild variant="outline">
-                <a href={`#approval-${a.approval_id}`}>승인 {a.approval_id} 열기</a>
+                <a href={`#approval-${a.approval_id}`}>승인 요청 {a.approval_id} 열기</a>
               </Button>
             ))}
             <Button asChild variant="outline">
-              <a href="#dag">의존 관계에서 보기</a>
+              <a href="#dag">작업 네트워크에서 보기</a>
             </Button>
           </>
         }
@@ -95,9 +95,9 @@ function TaskDetail({ id }: { id: string }) {
         <KeyValues
           items={[
             ['작업 상태', <TaskState key="state" id={id} />],
-            ['검증된 완료 조건', <CondCount key="cond" id={id} />],
+            ['검수된 완료 조건', <CondCount key="cond" id={id} />],
             [
-              '차단 이유',
+              '보류 사유',
               card.waits.length
                 ? card.waits.map((w) => (
                     <div key={w.id} className="flex flex-wrap items-center gap-2">
@@ -112,7 +112,7 @@ function TaskDetail({ id }: { id: string }) {
                 : '없음',
             ],
             [
-              '해소 행동',
+              '할 일',
               card.waits.length
                 ? card.waits.map((w) => (
                     <div key={w.id}>
@@ -128,9 +128,9 @@ function TaskDetail({ id }: { id: string }) {
         />
         <div className="grid gap-3 sm:grid-cols-3">
           {[
-            ['실행 상태 (최신 Run)', <StatusBadge key="exec" state={card.exec === '없음' ? 'Run 없음' : card.exec} />],
-            ['인수 상태 (Task 전체)', <StatusBadge key="acc" state={card.acceptance} tone={card.acceptance === '미인수' ? 'muted' : undefined} />],
-            ['활성 실행 단계', card.stages.length ? card.stages.map((s: string) => <StageTag key={s} stage={s} />) : '없음'],
+            ['실행 상태 (최근 실행)', <StatusBadge key="exec" state={card.exec === '없음' ? '실행 없음' : card.exec} />],
+            ['검수 상태 (Task 전체)', <StatusBadge key="acc" state={card.acceptance} tone={card.acceptance === '미인수' ? 'muted' : undefined} />],
+            ['실행 중인 단계', card.stages.length ? card.stages.map((s: string) => <StageTag key={s} stage={s} />) : '없음'],
           ].map(([k, v], i) => (
             <div key={i} className="flex flex-col gap-1.5 rounded-lg border px-3 py-2.5">
               <span className="text-xs text-muted-foreground">{k}</span>
@@ -140,8 +140,8 @@ function TaskDetail({ id }: { id: string }) {
         </div>
       </Section>
 
-      <Section title="완료 조건과 증거">
-        <Tbl head={['ID', '조건', '슬롯', '방법', '상태', '근거']}>
+      <Section title="완료 조건과 검수 근거">
+        <Tbl head={['ID', '조건', '항목', '확인 방법', '상태', '근거']}>
           {c.conditions.map((cd: any) => {
             const evs = [...model.evidence.values()].filter((e) => e.task === id && e.condition_id === cd.condition_id)
             const last = evs.at(-1)
@@ -150,7 +150,7 @@ function TaskDetail({ id }: { id: string }) {
                 <TableCell><span className="font-mono">{cd.condition_id}</span></TableCell>
                 <TableCell className="min-w-48 whitespace-normal">{cd.description}</TableCell>
                 <TableCell><span className="font-mono">{cd.slot ?? 'Task 전체'}</span></TableCell>
-                <TableCell>{cd.method === 'auto' ? '자동 검사' : '사람 승인'}</TableCell>
+                <TableCell>{cd.method === 'auto' ? '자동 검사' : '사용자 승인'}</TableCell>
                 <TableCell>
                   <StatusBadge state={RM.conditionState(model, id, cd.condition_id)} />
                 </TableCell>
@@ -159,20 +159,20 @@ function TaskDetail({ id }: { id: string }) {
                     <span className="inline-flex flex-wrap items-center gap-1.5">
                       <StatusBadge state={last.result} />
                       <span className="font-mono text-xs">{last.evidence_id}</span>
-                      <RawButton refId={last.raw_log_ref} title={`${last.evidence_id} 검사 로그`} label="로그" />
-                      {evs.length > 1 ? <span className="text-xs text-muted-foreground">(시도 {evs.length}회)</span> : null}
+                      <RawButton refId={last.raw_log_ref} title={`${last.evidence_id} 검사 로그`} label="로그 보기" />
+                      {evs.length > 1 ? <span className="text-xs text-muted-foreground">(검사 {evs.length}회)</span> : null}
                     </span>
                   ) : hand?.evidence[cd.condition_id] ? (
                     <span className="block min-w-60 whitespace-normal">
                       {hand.evidence[cd.condition_id]}
                       <span className="block text-xs text-muted-foreground">
-                        인수 기록 · {hand.approved_at} · {hand.channel}
+                        검수 기록 · {hand.approved_at} · {hand.channel}
                       </span>
                     </span>
                   ) : cd.method === 'auto' ? (
-                    '증거 없음'
+                    '검수 근거 없음'
                   ) : (
-                    '승인으로 확인'
+                    '사용자 승인 필요'
                   )}
                 </TableCell>
               </TableRow>
@@ -181,9 +181,9 @@ function TaskDetail({ id }: { id: string }) {
         </Tbl>
       </Section>
 
-      <Section title="슬롯과 의존">
-        <SubTitle>입력 슬롯</SubTitle>
-        <Tbl head={['슬롯', '공급', '상태']}>
+      <Section title="입력 및 출력">
+        <SubTitle>입력 항목</SubTitle>
+        <Tbl head={['항목', '선행 Task', '상태']}>
           {c.input_slots.length ? (
             c.input_slots.map((s: any) => {
               const d = model.deps.find((x) => x.to.task_id === id && x.to.slot === s.name)
@@ -192,7 +192,7 @@ function TaskDetail({ id }: { id: string }) {
                 <TableRow key={s.name}>
                   <TableCell><span className="font-mono">{s.name}</span></TableCell>
                   <TableCell>
-                    {!d ? '공급자 없음' : d.from.external_ref ? <>사람이 등록한 초기 입력 <RawButton refId={d.from.external_ref} title={`${s.name} 초기 입력`} /></> : <><TaskLink id={d.from.task_id} /> · <span className="font-mono">{d.from.slot}</span></>}
+                    {!d ? '선행 Task가 정해지지 않음' : d.from.external_ref ? <>사용자가 직접 넣은 입력 <RawButton refId={d.from.external_ref} title={`${s.name} 초기 입력`} /></> : <><TaskLink id={d.from.task_id} /> · <span className="font-mono">{d.from.slot}</span></>}
                   </TableCell>
                   <TableCell>{!d ? <StatusBadge state="대기" /> : d.from.external_ref ? <StatusBadge state="사용 가능" /> : <StatusBadge state={ok ? '인수됨' : '인수 전'} />}</TableCell>
                 </TableRow>
@@ -204,8 +204,8 @@ function TaskDetail({ id }: { id: string }) {
             </TableRow>
           )}
         </Tbl>
-        <SubTitle>출력 슬롯</SubTitle>
-        <Tbl head={['슬롯', '쓰는 Task', '상태']}>
+        <SubTitle>결과 항목</SubTitle>
+        <Tbl head={['항목', '후행 Task', '상태']}>
           {c.output_slots.map((s: any) => {
             const users = model.deps.filter((x) => x.from.task_id === id && x.from.slot === s.name)
             const ok = model.slotAccepted.has(`${id}/${s.name}`)
@@ -240,15 +240,15 @@ function TaskDetail({ id }: { id: string }) {
               <div key={r.id} className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono font-semibold text-strong">{r.id}</span>
-                  <span className="text-muted-foreground">시도 {r.attempt}</span>
+                  <span className="text-muted-foreground">실행 {r.attempt}회차</span>
                   <StatusBadge state={r.state} />
                   {r.reason ? <span className="text-xs text-muted-foreground">{r.reason}</span> : null}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Agent {x.round}회차{x.round > 1 ? ` · 수정 반복 ${x.round - 1}회` : ''}
+                  Agent {x.round}회차{x.round > 1 ? ` · 수정 ${x.round - 1}회` : ''}
                   {x.failed.length ? ` · 통과 못 한 검사: ${x.failed.map((f: any) => `${f.condition_id} ${f.result}(${f.evidence_id})`).join(', ')}` : ''}
                 </p>
-                <Tbl head={['노드', '단계', '회차', '수행', '시작–끝', '결과']}>
+                <Tbl head={['노드', '단계', '회차', '담당', '시작–끝', '결과']}>
                   {logs.map((l, i) => (
                     <TableRow key={i}>
                       <TableCell>{wf.nodes.get(l.node).name}</TableCell>
@@ -273,13 +273,13 @@ function TaskDetail({ id }: { id: string }) {
             )
           })
         ) : (
-          <Notice>아직 Run이 없습니다.</Notice>
+          <Notice>아직 실행하지 않았습니다.</Notice>
         )}
       </Section>
 
       <Section title="제출 기록">
         {subs.length ? (
-          <Tbl head={['ID', '만든 단계', '시각', '슬롯', '쓰기 범위', '원문']}>
+          <Tbl head={['ID', '생성 단계', '시각', '결과 항목', '변경 범위', '원문']}>
             {subs.map((s) => (
               <TableRow key={s.submission_id}>
                 <TableCell><span className="font-mono">{s.submission_id}</span></TableCell>
@@ -291,7 +291,7 @@ function TaskDetail({ id }: { id: string }) {
                   {s.slots.map((sl: any) => (
                     <span key={sl.output_slot} className="mr-2 inline-flex items-center gap-1">
                       <span className="font-mono">{sl.output_slot}</span>
-                      <RawButton refId={sl.artifact_ref} title={`${s.submission_id} · ${sl.output_slot}`} label="원문" />
+                      <RawButton refId={sl.artifact_ref} title={`${s.submission_id} · ${sl.output_slot}`} label="원문 보기" />
                     </span>
                   ))}
                 </TableCell>
@@ -309,11 +309,11 @@ function TaskDetail({ id }: { id: string }) {
         )}
       </Section>
 
-      <Section title="계약">
+      <Section title="Task 명세">
         <KeyValues
           items={[
             ['목표', c.goal],
-            ['전문', <RawButton key="raw" refId={c.contract_ref} title={`${id} 계약 전문`} label="계약 전문 보기" />],
+            ['전체 내용', <RawButton key="raw" refId={c.contract_ref} title={`${id} Task 명세 전문`} label="Task 명세 전체 보기" />],
             ['사용량', <span key="cost" className="font-mono">${cost.toFixed(2)} (추정값)</span>],
           ]}
         />

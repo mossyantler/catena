@@ -19,7 +19,7 @@ export function TaskState({ id, wrap = true }: { id: string; wrap?: boolean }) {
   const { c } = useCard(id)
   return (
     <span className={cn('inline-flex items-center gap-1', wrap ? 'flex-wrap' : 'min-w-0 overflow-hidden')}>
-      <StatusBadge state={c.rep} />
+      <StatusBadge state={c.rep} rep />
       {c.stages.map((s: string) => (
         <StageTag key={s} stage={s} />
       ))}
@@ -34,7 +34,7 @@ export function CondCount({ id }: { id: string }) {
       <span className="font-mono text-foreground">
         {c.accepted}/{c.total}
       </span>{' '}
-      인수{c.passed ? <span className="text-muted-foreground"> · {c.passed} 검증 통과</span> : null}
+      검수{c.passed ? <span className="text-muted-foreground"> · {c.passed} 검사 통과</span> : null}
     </span>
   )
 }
@@ -154,8 +154,8 @@ export function SummaryNodeContent({ id, ext }: { id: string; ext?: { in: number
       <span className="truncate text-sm font-semibold text-strong">{nameOf(id)}</span>
       <CountsBar counts={a.counts} legend={false} />
       <span className="truncate text-muted-foreground">
-        완료 조건 <span className="font-mono text-foreground">{a.acc}/{a.tot}</span> 인수 · 착수 가능 <span className="font-mono text-foreground">{a.ready}</span>
-        {hasTop ? ' · 뒤를 가장 많이 막는 Task 포함' : ''}
+        완료 조건 <span className="font-mono text-foreground">{a.acc}/{a.tot}</span> 검수 · 시작 가능 <span className="font-mono text-foreground">{a.ready}</span>
+        {hasTop ? ' · 후행 Task가 가장 많이 기다리는 Task 포함' : ''}
       </span>
       <span className={cn('inline-flex items-center gap-1 truncate text-muted-foreground')}>
         <ArrowRightLeft className="size-3" aria-hidden />

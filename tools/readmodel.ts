@@ -300,7 +300,7 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
         target = s.task;
       }
       m.approvals.set(p.approval_id, { ...p, task: target, requested: e.occurred_at });
-      openWait({ id: `approval:${p.approval_id}`, type: 'approval', issuer: e.issuer, target, resolve: `승인 ${p.approval_id} 결정`,
+      openWait({ id: `approval:${p.approval_id}`, type: 'approval', issuer: e.issuer, target, resolve: `승인 요청 ${p.approval_id} 결정`,
         action: { actor: '사용자', text: p.submission_id ? `제출 기록 ${p.submission_id} 승인 또는 반려` : `${p.kind} 승인 또는 반려`, screen: '승인 화면' },
         raised_at: e.occurred_at, derived: true, source: p.approval_id });
       break;
@@ -416,12 +416,12 @@ export function waitsOf(m: Model, taskId: string): Wait[] {
     for (const s of m.contracts.get(taskId).input_slots.filter((x: any) => x.required)) {
       const d = m.deps.find(x => x.to.task_id === taskId && x.to.slot === s.name);
       if (!d) {
-        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${s.name} 슬롯의 공급 Task 연결`,
-          action: { actor: '사용자', text: `${s.name} 슬롯을 공급할 Task 연결`, screen: 'Task 상세' }, raised_at: '', open: true, derived: true });
+        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${s.name} 입력의 선행 Task 연결`,
+          action: { actor: '사용자', text: `${s.name} 입력을 보낼 선행 Task 연결`, screen: 'Task 상세' }, raised_at: '', open: true, derived: true });
       } else if (!d.from.external_ref && !m.slotAccepted.has(`${d.from.task_id}/${d.from.slot}`)) {
         const src = m.nodes.get(d.from.task_id).name;
-        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${src}의 ${d.from.slot} 슬롯 인수`,
-          action: { actor: '시스템', text: `선행 Task "${src}" 진행`, screen: '선행 Task' }, raised_at: d.at, open: true, derived: true, source: d.from.task_id });
+        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${src}의 ${d.from.slot} 결과 검수`,
+          action: { actor: '시스템', text: `선행 Task ${src}의 검수를 기다림`, screen: '선행 Task' }, raised_at: d.at, open: true, derived: true, source: d.from.task_id });
       }
     }
   }

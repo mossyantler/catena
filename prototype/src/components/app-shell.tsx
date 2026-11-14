@@ -292,7 +292,7 @@ function Find() {
                   {nameOf(id)}
                   {rework ? <span className="text-xs text-muted-foreground"> · {reworkText(RM.rework(model, id).at(-1))}</span> : null}
                 </span>
-                <StatusBadge state={RM.card(model, id).rep} />
+                <StatusBadge state={RM.card(model, id).rep} rep />
               </a>
             ))
           ) : (

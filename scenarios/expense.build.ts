@@ -243,7 +243,7 @@ at(2, '09:52'); start('R06-1', 'check', 1, TEST); evidence('S06-1', 'E06-1', 'T0
 at(2, '10:00'); runStart('T03', 'R03-1'); start('R03-1', 'plan', 1, MGR);
 at(2, '10:05');
 ev('wait.raised', 'T13', CATENA, 'Resource', { wait_id: 'W-T13-budget', wait_type: 'resource', target_id: 'T13',
-  resolve_condition: '예산 예약 여유가 $3.50 이상', action: { actor: '시스템', text: 'T03 실행이 정산되면 자동으로 착수', screen: 'Project 개요' } });
+  resolve_condition: '예약 가능한 예산 $3.50 이상 필요', action: { actor: '시스템', text: 'T03 실행의 비용 정산 대기', screen: 'Project 개요' } });
 start('R06-1', 'work', 2, W(3));
 act('R06-1', 'work', 2, W(3), '메시지', '반올림을 올림으로 바꿨습니다', 'Agent 보고');
 at(2, '10:10');
@@ -272,7 +272,7 @@ usage('R06-1', 'work', 0.31); finish('R06-1', 'work', 3, W(3));
 at(2, '11:22'); start('R06-1', 'check', 3, TEST); evidence('S06-3', 'E06-3', 'T06-C1', '실패', failLog(3)); finish('R06-1', 'check', 3, TEST, '실패');
 at(2, '11:25'); runEnd('R06-1', '실패', '수정 반복 상한 3회 도달');
 ev('wait.raised', 'T06', CATENA, 'Execution', { wait_id: 'W-T06-decision', wait_type: 'decision', target_id: 'T06',
-  resolve_condition: '사용자가 다음 진행을 정함', action: { actor: '사용자', text: '실패한 검사 기록을 보고 새 시도를 시작할지 결정', screen: 'Task 상세' } });
+  resolve_condition: '다음 진행을 사용자가 정해야 함', action: { actor: '사용자', text: '실패한 검사 로그를 보고 다시 실행할지 결정', screen: 'Task 상세' } });
 
 at(2, '11:40'); act('R03-1', 'impl-limit', 1, W(2), '도구 호출', 'src/domain/limit.ts 작성 시작', '시스템 기록');
 at(2, '12:00'); act('R03-1', 'impl-api', 1, W(1), '도구 호출', 'npm test -- claims (로컬 실행)', '시스템 기록');
