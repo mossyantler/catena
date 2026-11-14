@@ -13,6 +13,8 @@ function contractOf(t: any) {
     input_slots: Object.keys(t.inputs ?? {}).map(name => ({ name, required: true })),
     output_slots: Object.entries(t.outputs).map(([name, kind]) => ({ name, kind, required: true })),
     conditions: t.conditions.map((c: any) => ({ condition_id: c.id, description: c.text, required: true, method: c.method, slot: c.slot })),
+    // 쓰기 범위(6-8)는 적었을 때만 넣는다. 없으면 저장소 전체이고, 이미 확정한 계약의 해시도 그대로다
+    ...(t.write_scope ? { write_scope: t.write_scope } : {}),
   };
 }
 

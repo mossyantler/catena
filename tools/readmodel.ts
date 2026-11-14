@@ -324,12 +324,14 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
       const c = m.contracts.get(n.id);
       const s = m.submissions.get(p.submission_id);
       need(s && s.task === n.id && s.scope_check === '통과', 'E7', `인수 대상 제출 기록 오류 ${p.submission_id}`);
-      const a = m.approvals.get(p.approval_id);
-      need(a && a.decision === '승인' && a.submission_id === p.submission_id, 'E7', `승인 ${p.approval_id}이 같은 제출 기록의 '승인'이 아니다`);
-      const ev = p.evidence_ids.map((id: string) => m.evidence.get(id));
-      need(ev.every((x: any) => x && x.submission_id === p.submission_id && x.result === '통과'), 'E7', '증거가 같은 제출 기록의 통과 결과가 아니다');
       const conds = p.condition_ids.map((id: string) => c.conditions.find((x: any) => x.condition_id === id));
       need(conds.every(Boolean), 'E7', '계약에 없는 조건');
+      // 사람 승인은 human 조건이 있는 인수에만 필요하다(7-4, v0.10.2). 승인을 붙였다면 auto만 덮어도 같은 제출 기록의 '승인'이어야 한다.
+      const needsHuman = conds.some((x: any) => x.method !== 'auto');
+      const a = m.approvals.get(p.approval_id);
+      if (needsHuman || p.approval_id) need(a && a.decision === '승인' && a.submission_id === p.submission_id, 'E7', `승인 ${p.approval_id}이 같은 제출 기록의 '승인'이 아니다`);
+      const ev = p.evidence_ids.map((id: string) => m.evidence.get(id));
+      need(ev.every((x: any) => x && x.submission_id === p.submission_id && x.result === '통과'), 'E7', '증거가 같은 제출 기록의 통과 결과가 아니다');
       for (const cd of conds) {
         if (cd.method === 'auto') need(ev.some((x: any) => x.condition_id === cd.condition_id), 'E7', `자동 조건 ${cd.condition_id}의 증거 없음`);
         else need(a.condition_ids.includes(cd.condition_id), 'E7', `사람 조건 ${cd.condition_id}이 승인 범위에 없음`);

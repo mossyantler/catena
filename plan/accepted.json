@@ -86,5 +86,98 @@
     },
     "approved_at": "2026-11-13",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T14",
+    "contract": "sha256:c8c39eef1f3555085065cf9cdd7363c2923264b023ae2a96416949fff99a5eba",
+    "evidence": {
+      "T14-C1": "2026-11-13 작업 트리(commit 082f99c 기준)에서 npm test 27개 통과. engine/commands.test.ts \"C1: 규칙을 어긴 명령은 상태와 이벤트를 남기지 않는다\": 순환(E4)·없는 공급 Task(E2)·자기 참조(E4)·형식 오류·Agent 불러오기(권한 거부)·없는 명령(대상 없음)·재불러오기(규칙 위반)·기대 버전 불일치(버전 충돌) 뒤 이벤트·명령 기록·상태 테이블 7개의 행 수가 그대로",
+      "T14-C2": "2026-11-13 작업 트리(commit 082f99c 기준)에서 npm test 27개 통과. \"C2: plan/catena.plan.json을 불러와 만든 읽기 모델이 tools/plan.ts의 결과와 같다\": 불러와 접은 describe 출력이 foldPlan(plan, [])와 같고, 사람 인수 기록 9건을 더하면 loadPlan() 결과와 같다. CLI로 Task 26개·이벤트 98건 불러오기와 status --store 조회 확인",
+      "T14-C3": "사용자가 대화에서 승인(\"인수해\"). 검토 대상: 폰으로 받은 명세 v0.10 → v0.10.1 변경분(계획 파일 형식, 출처 값 plan, 명령 기록, 저장소 드라이버 node:sqlite와 기본 위치)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T16",
+    "contract": "sha256:e2b2bf31b97599bb997c7a9eba1995adf0552c8db32dc9e8d426d422902cd570",
+    "evidence": {
+      "T16-C1": "2026-11-13 작업 트리(브랜치 prototype-react-flow, commit 1ec2203 다음 작업 트리)에서 npm test 29개 통과, engine/start.test.ts는 3회 연속 통과. \"C1: 입력 슬롯이 인수되기 전에는 Run이 생기지 않는다(Engine 인수 기준 1)\": A→B 계획에서 B 착수가 E6으로 거부되고 Run·Ticket·Baseline·이벤트(Workflow 묶기 포함)가 남지 않음. A 착수는 Run A-r1(대기)·Ticket(유효)·Baseline 생성, A의 Run이 생겨도 B는 계속 거부",
+      "T16-C2": "2026-11-13 작업 트리(브랜치 prototype-react-flow, commit 1ec2203 다음 작업 트리)에서 npm test 29개 통과, engine/start.test.ts는 3회 연속 통과. \"C2: 여러 프로세스가 같은 Task의 착수를 동시에 요청해도 Run과 예약은 하나만 생긴다(Engine 인수 기준 10)\": 프로세스 4개 동시 요청에 하나만 성공, Run·Ticket·Baseline·run.created 각 1건, 명령 밖 직접 삽입도 runs 부분 유일 인덱스가 거부"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T26",
+    "contract": "sha256:2477942aed9886b6fa08e5df7fd9a3da76d740caa5947eabbc03b802404d0d46",
+    "evidence": {
+      "T26-C1": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43345775160 (commit c92c363). tools/fold.test.ts \"E7(v0.10.2): auto 조건만 덮는 인수는 승인 없이 받아들이고, human 조건을 덮는 인수는 승인 없이는 거부한다\"",
+      "T26-C2": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43345775160 (commit c92c363). engine/start.test.ts \"T26-C2: human 조건이 없는 Task에는 인수 승인 노드가 없는 Workflow가, 있는 Task에는 승인 노드가 있는 Workflow가 묶인다\"",
+      "T26-C3": "사용자가 대화에서 승인(\"인수해. 진행해\"). 검토 대상: 폰으로 받은 명세 v0.10.1 → v0.10.2 변경분(3-2, 3-3, 7-4, 7-7, 7-8, 9-2, E7, 12장, Engine 인수 기준 14, 남는 위험)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T17",
+    "contract": "sha256:0acae6b7f06445e75aad6322ef760b0a7d32f7c039e4ff977eb9d5ae4a234988",
+    "evidence": {
+      "T17-C1": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43346317489 (commit fdcb15d). engine/supervise.test.ts \"C1: 감독 프로세스를 강제 종료하면 임대 만료 뒤 남은 프로세스가 정리되고 같은 Task를 새 Run으로 다시 시도할 수 있다(Engine 인수 기준 8)\"",
+      "T17-C2": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43346317489 (commit fdcb15d). engine/supervise.test.ts \"C2: 프로세스 ID가 재사용된 다른 프로세스는 죽이지 않는다\", \"C2: 여러 프로세스가 동시에 정리를 시도해도 한 프로세스만 정리하고, 넘겨받힌 임대는 연장되지 않는다\""
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T08",
+    "contract": "sha256:cfe56aa0ac6a1c456493795717d2eb07f76691749ebb3cd62b070eceaa5680cf",
+    "evidence": {
+      "T08-C1": "사용자가 대화에서 승인(\"인수해\"). 검토 대상: 폰으로 받은 docs/agent-cli-check.md. CLI JSON만 쓴 별도 Agent의 정답률 roombook 7/7, expense 7/7(합계 14/14, 오해 유형 없음), 과제별 대조표, JSON 개선 후보 10개(승인-조건 연결, 원문 보기, 후행·독립 질의, 시도 단위 등)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T27",
+    "contract": "sha256:711c3c89d4cf7df4601476a9fdde89c1874c900ae7281981d19f5b51a232be93",
+    "evidence": {
+      "T27-C1": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\": inbox 승인 항목의 approval_id·submission_id·condition_ids가 읽기 모델 승인과 같고 activity 승인 항목에 범위가 실림",
+      "T27-C2": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\": raw 본문이 원문 파일과 같고, 없는 원문은 종료 코드 3, 잘못된 참조는 2, 해시가 다른 원문은 1(규칙 위반)",
+      "T27-C3": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\": show의 upstream·downstream·independent가 RM.relations와 같음(T07, T03, T14)",
+      "T27-C4": "CI 통과: https://github.com/mossyantler/catena/actions/runs/43352203475 (commit 518bec4). tools/fold.test.ts \"T27: CLI JSON은 승인 범위, 원문, 선행·후행·독립, Run 시도와 Agent 회차를 싣는다(schema_version 2)\"와 \"C-12: CLI의 JSON 값은 화면이 쓰는 읽기 모델 질의 값과 같다\": run_attempt·agent_round·repairs, 옛 필드 없음, schema_version 2"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T28",
+    "contract": "sha256:17830df0ad2c6b83eb9b9bcde404ccf6c33283e25264b4b0ddf635fe3eb02633",
+    "evidence": {
+      "T28-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354004614 (commit 0a9c3ae). prototype/src/lib/datasets.test.ts \"T28-C1: 프로젝트 목록의 묶음이 모두 검사를 통과해 읽히고, data/의 묶음이 목록에서 빠지지 않는다\"",
+      "T28-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354004614 (commit 0a9c3ae)",
+      "T28-C3": "사용자가 대화에서 승인(\"인수함.\"). 검토 대상: https://<기기>.<tailnet>.ts.net:5180/ 의 프로젝트 목록, 카드로 들어가기와 \"다른 프로젝트\"로 돌아오기, 출처 배지(데스크톱·폰, 밝은·어두운 모드)"
+    },
+    "approved_at": "2026-11-13",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T19",
+    "contract": "sha256:ccc8202ec8a2d26716236a1508a61b9644c86af83800b357c350b87e168ca369",
+    "evidence": {
+      "T19-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354754952 (commit e930fca). engine/step.test.ts \"C1: Agent 노드를 띄우면 새 worktree에서 실행되고, 노드 시작·활동·끝과 transcript가 기록되며 검사 규칙을 통과한다\", \"C1: 다른 인터페이스에서 취소하면 감독 프로세스가 프로세스 그룹을 끝내고 Run을 취소로 닫는다(Engine 인수 기준 13)\"",
+      "T19-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43354754952 (commit e930fca). engine/step.test.ts \"C2: Agent의 \\\"테스트 통과\\\" 보고는 증거가 되지 않고 완료 조건과 인수 상태를 바꾸지 않는다\", \"정규화(R-7)\""
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T20",
+    "contract": "sha256:3d19f29c6587e9d209455ca7c8bb954484b3d060bd5c92aad8f83424aed200ff",
+    "evidence": {
+      "T20-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43368964427 (commit ef42e3c). engine/submit.test.ts \"T20-C1: 추적 파일 수정·삭제와 미추적 파일 생성이 모두 제출 기록에 잡히고, Catena가 그 내용으로 commit을 만든다\", \"T20-C1: write_scope 밖 변경은 제출 기록에서 거부되고, Run은 실패(쓰기 범위)로 끝나며 인수 대상에 들어가지 않는다(Engine 인수 기준 2)\""
+    },
+    "approved_at": "2026-11-13",
+    "channel": "CI(auto 조건)"
   }
 ]

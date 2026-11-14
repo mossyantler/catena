@@ -15,6 +15,7 @@ Catena는 AI 개발 과정을 사람이 이해할 수 있는 공정(작업 단�
 
 ```bash
 npm run dev                                                      # 시안 보기: http://127.0.0.1:5180 (고치면 바로 반영)
+npm run copy-review                                              # 문구 첨삭: http://127.0.0.1:5182/?review=copy
 npm test                                                         # 전체 시험(tools/*.test.ts, engine/*.test.ts, prototype/src/**/*.test.ts)
 npm run check                                                    # 타입 검사(tsc -b, 화면과 Node 코드 둘 다)
 npm run lint                                                     # oxlint + @shadcn/lint 디자인 규칙
@@ -22,30 +23,38 @@ npm run build                                                    # 게시용 빌
 npm run preview                                                  # dist/ 보기: http://127.0.0.1:5181
 node --test --test-name-pattern="E4" tools/fold.test.ts          # 시험 하나
 node tools/fold.ts scenarios/roombook [--at N]                   # 읽기 모델을 글로 출력(N = 재생 위치)
-node tools/catena.ts status [--bundle 폴더] [--at N] [--json]    # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity
+node tools/catena.ts status [--bundle 폴더 | --store 폴더] [--at N] [--json]  # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity·raw <sha256:원문>. JSON schema_version 2
+node tools/catena.ts plan import plan/catena.plan.json [--store 폴더]  # 계획 불러오기(명령 계층). 기본 저장소 ~/.catena/projects/<project_id>
 node scenarios/roombook.build.ts                                 # 시나리오 묶음 다시 만들기(expense.build.ts도 같다)
 node tools/plan.ts [--hash <Task ID>]                            # Catena 제작 공정: 계획 검사, Task 상태, 착수 가능 Task
 tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보기: tailnet 안에서만 https://<기기>.<tailnet>.ts.net:5180 (끄기: --https=5180 off)
 ```
 
-시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 `roombook`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따른다.
+시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따르고(사용자 1명, 측정표 `docs/user-test-results.csv`), 결과를 받으면 정답·기준 초과·오해 유형 칸을 같은 문서 4·5절과 대조해 채운다.
 
 코드를 바꾼 뒤 `npm test`, `npm run check`, `npm run lint`를 실행한다. 화면을 바꿨으면 데스크톱(1440px)과 폰(375px), 밝은 모드와 어두운 모드에서 확인한다. 화면 자체의 자동 시험은 없고, 공정표 배치는 `prototype/src/lib/graph.test.ts`가 시험한다. `.claude/launch.json`의 `prototype`(개발 서버)과 `dist`(빌드 결과) 설정이 미리보기 서버를 띄운다.
 
+문구 첨삭(T35)은 별도 개발 도구다. `docs/copy-review-items.json`의 제안을 항목별로 수정·확정·보류하고 Markdown·JSON으로 내보낸다. 저장 파일은 작업 트리 밖 `~/.catena/reviews/dashboard-copy.json`이며, 명세·계약·인수 기록은 자동으로 바꾸지 않는다. Tailscale HTTPS는 `tailscale serve --bg --https=5182 http://127.0.0.1:5182`로 연다. 첨삭 화면의 저장 API는 `npm run copy-review` 서버에서만 제공된다.
+
 ## Catena 제작 공정
 
-Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료 조건, 인수)으로 진행한다(2026-11-11 사용자 결정). 작업하는 Coding Agent 세션은 Catena가 시작한 Run이 아니므로(0-11) 실행·제출·인수 이벤트로 적지 않는다. 계획은 계획 파일로, 인수는 사용자가 대화에서 승인한 기록으로 남긴다. 화면은 `?data=catena`로 연다(출처 `계획 파일`, 실행 기록과 재생 위치 없음).
+Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료 조건, 인수)으로 진행한다(2026-11-11 사용자 결정). 작업하는 Coding Agent 세션은 Catena가 시작한 Run이 아니므로(0-11) 실행·제출·인수 이벤트로 적지 않는다. 계획은 계획 파일로, 인수는 CI 결과(auto 조건)와 사용자가 대화에서 승인한 기록(human 조건)으로 남긴다. 화면은 `?data=catena`로 연다(출처 `계획 파일`, 실행 기록과 재생 위치 없음).
 
 - **계획**: `plan/catena.plan.json`. Phase, WBS, Task마다 목표, 입력 슬롯과 공급 Task(`"슬롯": "T01.출력슬롯"`), 출력 슬롯, 완료 조건(`auto`: 명령으로 확인, `human`: 사용자 검토), Milestone. Engine MVP의 `plan import` 형식 후보다(T14).
-- **인수 기록**: `plan/accepted.json`. 인수한 순서대로 쌓는다. 항목은 `task_id`, `contract`(인수 시점의 계약 해시, `node tools/plan.ts --hash <Task>`), `evidence`(조건 ID마다 증거: 실행한 명령과 결과, commit, 사용자가 본 산출물), `approved_at`, `channel`이다.
+- **인수 기록**: `plan/accepted.json`. 인수한 순서대로 쌓는다. 항목은 `task_id`, `contract`(인수 시점의 계약 해시, `node tools/plan.ts --hash <Task>`), `evidence`(조건 ID마다 증거: CI 실행 URL과 commit, 사용자가 본 산출물), `approved_at`, `channel`(`CI(auto 조건)` 또는 `Claude Code 대화`)이다.
 - **검사**: `tools/planfold.ts`가 계획을 계획 이벤트로 바꿔 읽기 모델 검사 규칙(E2~E4, E11)을 거치고, 인수 기록마다 입력 슬롯이 먼저 인수됐는지, 조건마다 증거가 있는지, 계약 해시가 같은지 확인한다. `node tools/plan.ts`(글), 화면(`?data=catena`), `npm test`가 모두 이 코드를 쓴다.
 - **화면**: `plan/dataset.json`이 `origin: "plan"`으로 계획 파일과 인수 기록을 가리키고, `prototype/public/data/catena`가 `plan/`을 가리킨다. 사람 인수는 이벤트가 아니므로 접은 모델에 따로 더하고(`Bundle.accept`), Task 상세의 근거 칸에 인수 기록의 증거를 보인다.
+- **Task 부르기:** 사용자에게 Task를 말할 때는 ID만 쓰지 않고 `T14: 명령 처리와 계획 불러오기 구현`처럼 "ID: 이름"으로 쓴다(2026-11-13 사용자 요청). 착수 가능 목록, 인수 요청, 다음 Task 제안 모두 같다.
 - **진행 순서**
   1. `node tools/plan.ts`로 착수 가능한 Task를 확인한다. 사용자가 고르지 않았으면 어느 Task를 하는지 먼저 말한다.
   2. 그 Task의 계약(목표, 완료 조건) 안에서만 일한다. 계약 밖의 일이 필요하면 먼저 계획을 고친다.
-  3. 완료 조건마다 증거를 모은다.
-  4. 사용자에게 조건별 증거를 보이고 인수를 묻는다. 사용자가 승인한 때만 `accepted.json`에 적는다. Agent가 스스로 인수하지 않는다.
-  5. 인수되면 그 Task의 작업과 인수 기록을 한 커밋에 함께 넣고 push까지 한다(2026-11-12 사용자 결정). 인수 전의 작업은 따로 묻지 않고 커밋하지 않는다.
+  3. 완료 조건마다 증거를 모은다. `auto` 조건의 증거는 push한 commit에서 GitHub Actions `check`(`.github/workflows/check.yml`: `npm test`, `npm run check`, `npm run lint`, `npm run build`)가 통과한 실행이다. Agent가 자기 세션에서 돌린 검사는 확인용일 뿐 증거가 아니다(0-4).
+  4. 인수는 조건의 종류로 정한다(2026-11-13 사용자 결정). Agent는 자기 보고로 인수하지 않는다.
+     - **조건이 모두 `auto`인 Task:** 작업을 커밋·push하고 그 commit의 CI가 통과하면, 실행 URL과 commit을 증거로 `accepted.json`에 적는다(`channel: "CI(auto 조건)"`). 사용자에게 묻지 않고 결과만 알린다. 사용자는 Milestone 병합 때 PR로 한꺼번에 검토한다.
+     - **`human` 조건이 하나라도 있는 Task:** 사용자에게 그 조건의 산출물과 증거를 보이고, 승인한 때만 적는다.
+     - CI가 실패하면 인수하지 않고 고친다.
+  5. 커밋과 push(2026-11-12 사용자 결정). 작업을 커밋·push해 CI를 돌리고, 인수 기록은 CI가 통과한 뒤(human 조건이 있으면 사용자 승인까지 받은 뒤) 다음 커밋으로 넣는다. `auto` 조건이 하나도 없는 Task는 작업과 인수 기록을 한 커밋에 넣어도 된다.
+  6. PR은 Task마다 새로 열지 않는다. 열려 있는 PR 하나에 인수된 커밋을 계속 쌓고, Milestone에 도달하면 병합을 제안한다. 병합은 사용자가 한다(2026-11-13 사용자 결정). 열린 PR이 없으면 그때 하나 연다.
 - **계획 고치기**: 인수되지 않은 Task는 고칠 수 있다. 인수된 Task의 계약을 바꾸면 계약 해시가 달라져 검사가 실패한다(9-4, 승인은 승인한 버전에만 적용된다). 바꿔야 하면 새 Task를 만든다.
 - 계획에 예상 소요나 일정을 넣지 않는다(0-7). 진척은 인수된 완료 조건으로만 본다.
 - 명세 「13장 개발 단계」의 착수 순서(Engine MVP는 저장소·명령 계층부터)는 의존이 아니라 순서 원칙이라 계획 파일에 엣지로 넣지 않았다. 착수 가능한 Task가 여럿이면 이 원칙으로 고른다.
@@ -59,7 +68,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `events.jsonl`: ExecutionEvent 한 줄에 하나. `seq`는 1부터 빈틈없이 이어진다.
 - `artifacts/sha256/<hex>`: 원문(transcript 발췌, diff, 검사 로그). 이벤트 payload는 원문을 `{kind: 'artifact', id: 'sha256:<hex>'}`로 참조하고, 불러올 때 해시를 다시 계산한다.
 - 묶음은 둘이다. `roombook`(회의실 예약, 기준 시나리오)과 `expense`(사내 경비 정산, 사용자 시험용). 둘은 구조가 같고 내용과 Task 번호가 다르다(대응표는 `docs/user-test.md`).
-- `prototype/public/data/<이름>`은 `scenarios/<이름>`을 가리키는 심볼릭 링크다(`catena`만 `plan/`을 가리킨다, 「Catena 제작 공정」). 묶음을 더하면 링크도 더한다. 빌드하면 `dist/data/<이름>/`에 실제 파일로 복사된다.
+- `prototype/public/data/<이름>`은 `scenarios/<이름>`을 가리키는 심볼릭 링크다(`catena`만 `plan/`을 가리킨다, 「Catena 제작 공정」). 묶음을 더하면 링크와 `prototype/public/data/index.json`의 항목도 더한다(빠지면 시험이 실패한다). 빌드하면 `dist/data/<이름>/`에 실제 파일로 복사된다.
 
 **`tools/readmodel.ts`: 규칙의 유일한 출처**
 - `checkStream`: 중복, 순서, 출처 선언을 확인한다(E1, E10).
@@ -72,6 +81,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - 화면은 `prototype/src/lib/rm.ts`를 거쳐 `tools/readmodel.ts`를 직접 불러온다. 생성 파일은 없다.
 - 상태 판단 로직은 넣지 않고 읽기 모델 질의 결과만 그린다. 상태 이름과 색의 대응만 `lib/status.ts`에 있다.
 - 불러오기 순서: 묶음 전체를 끝까지 접어 검사하고, 통과하면 기본 재생 위치로 다시 접는다(`App.tsx`, `lib/data.ts`, `lib/store.tsx`). 검사에 실패하면 화면을 그리지 않는다. 네트워크 오류는 "불러오기 실패", 규칙 위반은 "검사 실패"로 나눠 표시한다.
+- `?data=`가 없으면 프로젝트 목록(`pages/projects.tsx`)을 연다. `data/index.json`의 묶음을 하나씩 불러와 검사하고 출처·검증된 완료 조건과 함께 보인다. 프로젝트 화면의 사이드바 위 "다른 프로젝트"가 목록으로 돌아간다. 다른 프로젝트는 새로 열어 출처를 섞지 않는다(C-11).
 - 화면은 해시 라우팅이다: `#overview`, `#wbs[-id]`, `#dag[-id]`, `#task-<id>`, `#agent-<id>`, `#approval-<id>`, `#phase`, `#milestone`(`lib/route.ts`, 화면은 `pages/`).
 - 묶음 고르기(`?data=`)와 비교 기준 화면(`?mode=baseline`, `pages/baseline.tsx`)은 주소 쿼리로 정한다(`lib/data.ts`). 비교 기준 화면에는 Catena의 해석(대표 상태, 차단 이유, 공정표, 집계, 상태 색)을 넣지 않는다.
 - 공정표 세 가지(WBS 공정표, 전체 의존, Agent Graph)는 `components/flow-graph.tsx`(React Flow)가 그리고, 배치는 `lib/graph.ts`(ELK)가 정한다. 노드는 끌 수 없다. 전체 의존은 후행 노드에 엣지마다 입력 포트를 줘서 슬롯 숫자가 겹치지 않게 한다(`labels: 'head'`). ELK(1.6MB)는 그래프 화면에서만 따로 불러온다.
@@ -83,6 +93,11 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `store.ts`: Project 저장소(14-3). Node 내장 `node:sqlite`로 SQLite 파일 하나(WAL)에 소유 Core별 테이블과 append-only `events` 테이블을 둔다. 기본 위치는 `~/.catena/projects/<project_id>/`(`catena.db`, `artifacts/sha256/`)로, 저장소 작업 트리 밖이다.
 - 쓰기는 `tx()`(BEGIN IMMEDIATE)로만 하고, 이벤트는 그 안에서 `append()`로 덧붙인다. seq는 트랜잭션 안에서 매기므로 여러 프로세스가 써도 빈틈이 없다. 불변 기록(계약, Baseline, 제출 기록, 증거, 인수, 승인 요청·결정, 이벤트)은 trigger로 수정·삭제를 거부한다.
 - `events()`는 읽기 모델의 입력 검사(`checkStream`)를 거친 이벤트를, `refCheck`는 산출물 원문 확인을 돌려준다. 그대로 `foldAll`에 넣는다.
+- `commands.ts`: 명령 계층. `execute(store, {command, principal, channel, args, expected_version?})`가 권한(9-1)과 버전을 확인하고, 트랜잭션 안에서 상태 테이블과 이벤트를 쓴 뒤 저장된 이벤트 전체를 읽기 모델로 접어 검사한다. 어기면 아무것도 남기지 않고 `규칙 위반 / 권한 거부 / 버전 충돌 / 대상 없음`을 돌려준다. 성공한 명령은 `commands` 표에 주체·채널과 함께 남는다. 명령은 `plan.import`(계획 이벤트는 `tools/planfold.ts`의 `planEvents`로 만든다, 제작 공정 화면과 같은 코드)와 `run.start`(착수 요청: 내장 Workflow Template을 묶고 Baseline·Run(대기)·Ticket을 한 트랜잭션에 만든다, 6-1)다. Task마다 끝나지 않은 Run이 하나뿐인 것은 `runs`의 부분 유일 인덱스가 지킨다.
+- `supervise.ts`: 감독 임대(6-10)와 감독 상실 복구(6-9). `beginRun`(명령 `run.begin`: Run을 실행 중으로 바꾸고 임대를 얻음), `recordProcess`(프로세스 그룹과 시작 시각), `renewLease`, `recoverExpired`(만료된 임대를 트랜잭션 안에서 넘겨받아 프로세스 그룹 종료 → 명령 `run.lost`: Ticket 취소, 예약 정산, Run 실패(감독 상실)). 프로세스 ID 재사용은 시작 시각(`ps -o lstart=`)으로 가린다. CLI는 저장소를 열 때마다 `recoverExpired`를 부른다.
+- `runner.ts`: Claude Code Runner(Runner 명세 R-4, R-6, R-7). `prepare`가 `claude -p --output-format stream-json …`을 사용자 설정·환경 그대로(Run 전용 TMPDIR만 바꿔) 만들고, `start`가 새 프로세스 그룹으로 띄운다. `normalize`는 stream-json 한 줄을 이벤트 초안으로 바꾼다. 도구 호출과 메시지는 `Agent 보고`이고 증거가 아니다(0-4).
+- `submit.ts`: 제출 기록(6-8). 임시 index로 worktree를 base_ref와 비교해(수정·삭제·미추적, ignore 제외) write_scope를 확인하고, 통과하면 `commit-tree`로 제출 commit을 만들어 `refs/catena/submissions/<id>`에 남긴다. Agent의 worktree는 바꾸지 않는다. 거부면 commit하지 않고, `step.ts`가 Run을 `실패(쓰기 범위)`로 닫고 decision 대기 사유를 낸다(`run.fail`).
+- `step.ts`: Agent 노드 하나 실행. 명령 `project.configure`(권한 모드, 저장소), `run.cancel`(대기면 바로 취소, 실행 중이면 취소 요청), `node.start`·`node.events`·`node.finish`·`run.cancelled`. `runAgentNode`가 Run 전용 worktree(`<저장소 폴더>/worktrees/<run_id>`, Baseline의 base_ref)를 만들고 Runner를 띄워, 주기마다 활동을 기록하고 임대를 연장하고 취소 요청을 확인한다. 끝나면 transcript를 원문으로 저장하고(시스템 기록) 사용량(추정값)과 노드 끝을 남긴다. 시험은 `fixtures/fake-claude.mjs`(같은 stream-json을 내는 가짜 CLI)를 쓴다.
 
 **시나리오 생성기** (`scenarios/roombook.build.ts`, `scenarios/expense.build.ts`, 공용 도구 `scenarios/sim.ts`)
 - 결정적이다. `event_id`는 `sha256(dataset:seq)`에서 만들고, 시각은 `at()`으로 정한다. `Date.now()`나 난수를 쓰지 않는다.
@@ -97,7 +112,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 
 ## 명세 문서
 
-- **최신은 `core_spec_v0.10.md`다(상태: 제안).** v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
+- **최신은 `core_spec_v0.10.4.md`다(상태: 제안).** v0.10.4는 계획 파일 Task에 `write_scope`(선택)를 더하고, 제출 commit은 Catena가 worktree 내용으로 만들어 `refs/catena/submissions/<id>`로 남긴다고 6-8을 바로잡았다. v0.10.3은 Product MVP 사용자 시험을 사용자 1명이 진행하도록 바꿨다(2026-11-13 사용자 결정: 처음 보는 참가자를 구할 수 없다. 처음 보는 사람의 이해는 확인하지 못하는 한계를 명세에 적었다). v0.10.2는 v0.10.1에서 인수 승인(human 노드)을 human 조건이 있는 Task에만 두도록 바꿨다(조건이 모두 auto면 통과 증거만으로 인수, 읽기 모델 E7과 내장 Template도 같이). v0.10.1은 v0.10에 계획 파일 형식, 출처 값 `plan`, 명령 기록, 저장소 드라이버(`node:sqlite`)와 위치를 더했다. v0.10은 v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
 - `runner_spec_v0.4.md`: Runner 연결부(Agent 띄우기, stream-json 정규화, 프로세스 그룹, 인증 정책)와 Engine MVP Claude Code Runner 구성. 규칙 자체를 바꾸려면 core spec을 고친다. `runner_security_spec_v0.1~0.3`은 이력이다.
 - `dashboard_interaction_design.md`: 대시보드에서 할 수 있는 조작의 설계 초안(T29). 객체·상태별 조작, 설계 규칙 I1~I13, 열린 질문, 비교 도구 조사. 인수되면 다음 명세 개정에 반영한다.
 - `orchestration_architecture_review.md`: v0.9의 기술 조사(Beads, Gas Town, Gas City, Herdr, LangGraph, ADK, MAF, Coding Agent CLI, MCP·ACP·A2A)와 아키텍처 결정 근거, Spike 목록.

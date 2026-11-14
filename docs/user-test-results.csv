@@ -1,0 +1,15 @@
+﻿블록,방식,시나리오,과제,과제 문장,답(요약),판단 이유,이동 수,막힌 지점,탐색 시간(초),메모,정답(O/X),기준 이동 수,기준 초과,오해 유형,주소
+1,Catena,expense,Q1,지금까지 완료된 Task와 지금 실행 중인 Task를 모두 말해 주세요. 전체 완료 조건 가운데 몇 개가 인수됐는지도 말해 주세요.,,,,,,,,0,,,http://127.0.0.1:5180/?data=expense#overview
+1,Catena,expense,Q2,영수증 처리 통합 테스트(T08)는 왜 시작하지 못하고 있나요? 시작하려면 무엇이 먼저 일어나야 하나요?,,,,,,,,1,,,http://127.0.0.1:5180/?data=expense#overview
+1,Catena,expense,Q3,청구 API 구현(T03)이 끝나야 시작할 수 있는 Task를 직접·간접 모두 들어 주세요. 그리고 이 Task와 동시에 진행해도 되는(서로 의존하지 않는) Task를 두 개 들어 주세요.,,,,,,,,2,,,http://127.0.0.1:5180/?data=expense#overview
+1,Catena,expense,Q4,"청구 API 구현(T03)에서 Manager는 무엇을 했고, 각 Worker는 무엇을 맡아 어디까지 했나요? Worker는 어떤 Agent Runtime으로 실행됐나요?",,,,,,,,3,,,http://127.0.0.1:5180/?data=expense#overview
+1,Catena,expense,Q5,지금 사용자(승인자)가 승인하거나 결정해야 하는 일은 무엇인가요? 각각 무엇을 보고 결정하면 되나요?,,,,,,,,1,,,http://127.0.0.1:5180/?data=expense#overview
+1,Catena,expense,Q6,청구 API 구현(T03)의 완료 조건은 어디까지 검증됐나요? 근거는 무엇인가요?,,,,,,,,2,,,http://127.0.0.1:5180/?data=expense#overview
+1,Catena,expense,Q8,"검증에 실패해 고친 뒤 다시 시도한 Task는 어느 것인가요? 각각 몇 번째 시도까지 왔고, 지금 어떤 상태인가요?",,,,,,,,2,,,http://127.0.0.1:5180/?data=expense#overview
+2,비교 기준,roombook,Q1,지금까지 완료된 Task와 지금 실행 중인 Task를 모두 말해 주세요. 전체 완료 조건 가운데 몇 개가 인수됐는지도 말해 주세요.,,,,,,,,-,-,,http://127.0.0.1:5180/?data=roombook&mode=baseline
+2,비교 기준,roombook,Q2,인증 통합 테스트(T05)는 왜 시작하지 못하고 있나요? 시작하려면 무엇이 먼저 일어나야 하나요?,,,,,,,,-,-,,http://127.0.0.1:5180/?data=roombook&mode=baseline
+2,비교 기준,roombook,Q3,예약 API 구현(T07)이 끝나야 시작할 수 있는 Task를 직접·간접 모두 들어 주세요. 그리고 이 Task와 동시에 진행해도 되는(서로 의존하지 않는) Task를 두 개 들어 주세요.,,,,,,,,-,-,,http://127.0.0.1:5180/?data=roombook&mode=baseline
+2,비교 기준,roombook,Q4,"예약 API 구현(T07)에서 Manager는 무엇을 했고, 각 Worker는 무엇을 맡아 어디까지 했나요? Worker는 어떤 Agent Runtime으로 실행됐나요?",,,,,,,,-,-,,http://127.0.0.1:5180/?data=roombook&mode=baseline
+2,비교 기준,roombook,Q5,지금 사용자(승인자)가 승인하거나 결정해야 하는 일은 무엇인가요? 각각 무엇을 보고 결정하면 되나요?,,,,,,,,-,-,,http://127.0.0.1:5180/?data=roombook&mode=baseline
+2,비교 기준,roombook,Q6,예약 API 구현(T07)의 완료 조건은 어디까지 검증됐나요? 근거는 무엇인가요?,,,,,,,,-,-,,http://127.0.0.1:5180/?data=roombook&mode=baseline
+2,비교 기준,roombook,Q8,"검증에 실패해 고친 뒤 다시 시도한 Task는 어느 것인가요? 각각 몇 번째 시도까지 왔고, 지금 어떤 상태인가요?",,,,,,,,-,-,,http://127.0.0.1:5180/?data=roombook&mode=baseline

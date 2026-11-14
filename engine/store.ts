@@ -15,7 +15,7 @@ export const SCHEMA_VERSION = 1;
 export const defaultStoreDir = (projectId: string) => join(homedir(), '.catena', 'projects', projectId);
 
 // 불변 기록(14-3): 만든 뒤 수정·삭제할 수 없다. 승인은 요청과 결정을 따로 남긴다(결정도 바뀌지 않는다).
-export const IMMUTABLE = ['contracts', 'baselines', 'submissions', 'evidence', 'acceptances', 'approval_requests', 'approval_decisions', 'events'];
+export const IMMUTABLE = ['contracts', 'baselines', 'submissions', 'evidence', 'acceptances', 'approval_requests', 'approval_decisions', 'events', 'commands'];
 
 const SCHEMA = `
 -- Planning
@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS baselines (baseline_id TEXT PRIMARY KEY, payload TEXT
 CREATE TABLE IF NOT EXISTS tickets (ticket_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL);
 -- Execution
 CREATE TABLE IF NOT EXISTS runs (run_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, attempt INTEGER NOT NULL, state TEXT NOT NULL, payload TEXT NOT NULL, UNIQUE (task_id, attempt));
+-- Task마다 끝나지 않은 Run은 하나뿐이다. 여러 프로세스가 동시에 착수를 요청해도 이 유일 제약이 지킨다(6-1)
+CREATE UNIQUE INDEX IF NOT EXISTS runs_one_open ON runs(task_id) WHERE state IN ('대기', '실행 중', '일시 중단', '결과 불명');
 CREATE TABLE IF NOT EXISTS run_leases (run_id TEXT PRIMARY KEY, holder TEXT NOT NULL, expires_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS submissions (submission_id TEXT PRIMARY KEY, run_id TEXT, payload TEXT NOT NULL);
 -- Validation & Acceptance
@@ -40,6 +42,8 @@ CREATE TABLE IF NOT EXISTS approval_requests (approval_id TEXT PRIMARY KEY, payl
 CREATE TABLE IF NOT EXISTS approval_decisions (approval_id TEXT PRIMARY KEY REFERENCES approval_requests(approval_id), payload TEXT NOT NULL);
 -- B · 이벤트(ExecutionEvent, 형식은 읽기 모델과 같다)
 CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY, event_id TEXT NOT NULL UNIQUE, body TEXT NOT NULL);
+-- 명령 기록: 성공한 명령마다 남긴 이벤트 범위, 요청 주체, 채널(0-10). 실패한 명령은 남기지 않는다
+CREATE TABLE IF NOT EXISTS commands (seq_from INTEGER NOT NULL, seq_to INTEGER NOT NULL, command TEXT NOT NULL, principal TEXT NOT NULL, channel TEXT NOT NULL, args_hash TEXT NOT NULL, at TEXT NOT NULL);
 ${IMMUTABLE.map(t => `
 CREATE TRIGGER IF NOT EXISTS ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, '불변 기록: ${t}은 수정할 수 없다'); END;
 CREATE TRIGGER IF NOT EXISTS ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, '불변 기록: ${t}은 삭제할 수 없다'); END;`).join('')}
@@ -51,7 +55,8 @@ export type EventDraft = Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'or
 export function openStore(dir: string) {
   mkdirSync(join(dir, 'artifacts', 'sha256'), { recursive: true });
   const db = new DatabaseSync(join(dir, 'catena.db'));
-  db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 10000; PRAGMA foreign_keys = ON;');
+  // 잠금 대기 시간을 가장 먼저 둔다. 여러 프로세스가 동시에 열 때 journal_mode 변경이 대기 없이 SQLITE_BUSY로 실패하지 않게 한다
+  db.exec('PRAGMA busy_timeout = 10000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   const ver = (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
   if (ver > SCHEMA_VERSION) throw new Error(`저장소 형식 ${ver}은 이 Catena(${SCHEMA_VERSION})보다 새롭다`);
   db.exec(`BEGIN IMMEDIATE; ${SCHEMA} PRAGMA user_version = ${SCHEMA_VERSION}; COMMIT;`);
