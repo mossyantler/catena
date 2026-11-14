@@ -378,7 +378,7 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
     case 'usage.recorded': {
       const r = runOf(p.run_id);
       need(typeof p.cost_usd === 'number' && ['보고값', '추정값', '알 수 없음'].includes(p.reliability), 'E2', '사용량 형식 오류');
-      m.usage.push({ task: r.task, run: r.id, node: p.node_id, cost: p.cost_usd, reliability: p.reliability });
+      m.usage.push({ task: r.task, run: r.id, node: p.node_id, cost: p.cost_usd, reliability: p.reliability, billing: p.billing, tokens: p.tokens });
       break;
     }
 

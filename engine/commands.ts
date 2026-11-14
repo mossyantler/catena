@@ -77,6 +77,20 @@ function checkPlanShape(plan: any) {
   }
 }
 
+/** API 과금 사용액. 구독 사용량은 실제 청구액이 아니므로 뺀다(5-7). run_id를 주면 그 Run만. */
+export const spentUsd = (s: Store, run_id?: string) => s.events()
+  .filter(e => e.type === 'usage.recorded' && e.payload.billing !== '구독' && (!run_id || e.payload.run_id === run_id))
+  .reduce((n, e) => n + (Number(e.payload.cost_usd) || 0), 0);
+
+/** 남은 프로젝트 예산: 상한 - 사용액 - 아직 정산되지 않은 예약의 남은 몫(5-3). 상한이 없으면 null. */
+export function budgetLeft(s: Store): number | null {
+  const cap = JSON.parse((s.db.prepare('SELECT payload FROM projects').get() as { payload: string } | undefined)?.payload ?? '{}').settings?.budget_usd;
+  if (typeof cap !== 'number') return null;
+  const open = (s.db.prepare("SELECT run_id, payload FROM tickets WHERE status = '유효'").all() as { run_id: string; payload: string }[])
+    .reduce((n, t) => n + Math.max((JSON.parse(t.payload).reservation?.budget_usd ?? 0) - spentUsd(s, t.run_id), 0), 0);
+  return cap - spentUsd(s) - open;
+}
+
 /** 명령 이름 → 처리기. 감독(supervise.ts)처럼 다른 모듈도 여기에 명령을 더한다. */
 export const HANDLERS: Record<string, Handler> = {
   // 착수 요청(6-1, v0.10): 착수 가능 판정(1-4)과 요청 주체 확인 → Baseline → Run(대기) → 예약과 Ticket을 트랜잭션 하나로.
@@ -92,6 +106,12 @@ export const HANDLERS: Record<string, Handler> = {
       const contract = m.contracts.get(a.task_id);
       if (!contract) throw new Refusal('규칙 위반', `E2: 계약이 확정되지 않은 Task ${a.task_id}`);
       if ([...m.runs.values()].some((r: any) => r.task === a.task_id && OPEN_RUN.includes(r.state))) throw new Refusal('규칙 위반', `${a.task_id}에 끝나지 않은 Run이 있다. Task마다 끝나지 않은 Run은 하나뿐이다(6-1)`);
+      // 예산 상한이 있으면 예약이 남은 예산 안이어야 한다. 넘으면 신규 착수를 막는다(5-3, 5-6)
+      const left = budgetLeft(s);
+      if (left !== null) {
+        if (typeof a.budget_usd !== 'number' || !(a.budget_usd > 0)) throw new Refusal('규칙 위반', '예산 상한이 있는 프로젝트에서는 Run마다 예약액(budget_usd)을 정한다(5-3)');
+        if (a.budget_usd > left + 1e-9) throw new Refusal('규칙 위반', `예산 상한: 남은 예산 $${left.toFixed(2)}보다 큰 예약 $${a.budget_usd.toFixed(2)}은 시작할 수 없다(5-6)`);
+      }
       const kind = contract.conditions.some((c: any) => c.method !== 'auto') ? 'approve' : 'auto';
       const templateRef = refs[kind];
       if (!m.workflows.has(a.task_id)) emit({ type: 'workflow.bound', subject: a.task_id, issuer: 'Graph Design', payload: { task_id: a.task_id, workflow_ref: templateRef, nodes: TEMPLATES[kind].nodes, edges: TEMPLATES[kind].edges } });

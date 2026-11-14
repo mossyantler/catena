@@ -11,7 +11,9 @@ const prompt = readFileSync(0, 'utf8');
 if (process.env.FAKE_CLAUDE_ARGS) writeFileSync(process.env.FAKE_CLAUDE_ARGS, JSON.stringify({ argv: process.argv.slice(2), prompt, tmpdir: process.env.TMPDIR }));
 const say = o => process.stdout.write(JSON.stringify(o) + '\n');
 const model = process.argv[process.argv.indexOf('--model') + 1] ?? 'default';
-say({ type: 'system', subtype: 'init', model, session_id: 'fake-session', tools: ['Write'] });
+say({ type: 'system', subtype: 'init', model, session_id: 'fake-session', tools: ['Write'], apiKeySource: process.env.FAKE_CLAUDE_KEYSOURCE ?? 'none' });
+// FAKE_CLAUDE_RATE=rejected: 구독 사용 한도에 닿았다는 신호를 보낸다
+if (process.env.FAKE_CLAUDE_RATE) say({ type: 'rate_limit_event', rate_limit_info: { status: process.env.FAKE_CLAUDE_RATE } });
 if (mode === 'ok') {
   say({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Write', input: { file_path: 'hello.txt', content: '안녕' } }] } });
   writeFileSync('hello.txt', '안녕\n');

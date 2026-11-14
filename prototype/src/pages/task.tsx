@@ -66,7 +66,10 @@ function TaskDetail({ id }: { id: string }) {
   const openAppr = [...model.approvals.values()].filter((a) => a.task === id && !a.decision)
   const runs = [...model.runs.values()].filter((r) => r.task === id).sort((a, b) => a.attempt - b.attempt)
   const subs = [...model.submissions.values()].filter((s) => s.task === id)
-  const cost = model.usage.filter((u) => u.task === id).reduce((s, u) => s + u.cost, 0)
+  // 구독 인증의 사용량은 청구액이 아니므로 금액 대신 토큰으로 보인다(5-7)
+  const used = model.usage.filter((u) => u.task === id)
+  const cost = used.filter((u) => u.billing !== '구독').reduce((s, u) => s + u.cost, 0)
+  const tokens = used.filter((u) => u.billing === '구독').reduce((s, u) => s + (u.tokens ?? 0), 0)
   const wf = model.workflows.get(id)
   const rework = new Map(RM.rework(model, id).map((x) => [x.run_id, x]))
   return (
@@ -320,7 +323,7 @@ function TaskDetail({ id }: { id: string }) {
           items={[
             ['목표', c.goal],
             ['전체 내용', <RawButton key="raw" refId={c.contract_ref} title={`${id} Task 명세 전문`} label="Task 명세 전체 보기" />],
-            ['사용량', <span key="cost" className="font-mono">${cost.toFixed(2)} (추정값)</span>],
+            ['사용량', <span key="cost" className="font-mono">{tokens && !cost ? `토큰 ${tokens.toLocaleString()} (구독 사용량)` : `$${cost.toFixed(2)} (추정값)`}</span>],
           ]}
         />
       </Section>

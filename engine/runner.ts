@@ -39,7 +39,7 @@ export const stop = (h: Handle) => realProcs.killGroup(h.pgid);
 
 export type Draft =
   | { type: 'agent.activity'; payload: { kind: '도구 호출' | '메시지'; summary: string; source: 'Agent 보고' } }
-  | { type: 'init'; payload: { model?: string; session_id?: string } }
+  | { type: 'init'; payload: { model?: string; session_id?: string; apiKeySource?: string } }
   | { type: 'result'; payload: { ok: boolean; subtype?: string; cost_usd: number; tokens?: number } }
   | { type: 'rate_limit'; payload: { status?: string } };
 
@@ -48,7 +48,8 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s
 /** R-7: stream-json 한 줄(객체)을 이벤트 초안으로. 표에 없는 종류는 버리고 원문(transcript)에만 남긴다. */
 export function normalize(msg: any): Draft[] {
   if (!msg || typeof msg !== 'object') return [];
-  if (msg.type === 'system' && msg.subtype === 'init') return [{ type: 'init', payload: { model: msg.model, session_id: msg.session_id } }];
+  // apiKeySource는 인증 방식의 이름뿐이다(none이면 구독 로그인). 자격증명 값은 읽지 않는다
+  if (msg.type === 'system' && msg.subtype === 'init') return [{ type: 'init', payload: { model: msg.model, session_id: msg.session_id, ...(msg.apiKeySource ? { apiKeySource: msg.apiKeySource } : {}) } }];
   if (msg.type === 'assistant') {
     const out: Draft[] = [];
     for (const c of msg.message?.content ?? []) {

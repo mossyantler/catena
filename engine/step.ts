@@ -10,6 +10,7 @@ import { execute, HANDLERS, Refusal } from './commands.ts';
 import { holds, realProcs, recordProcess, renewLease, type Holder } from './supervise.ts';
 import { lines, normalize, prepare, start, stop, type Draft } from './runner.ts';
 import { submit, type Submitted } from './submit.ts';
+import { stopIfExhausted } from './budget.ts';
 import type { Store } from './store.ts';
 
 const SYSTEM = { kind: 'system' as const, id: 'orchestrator' };
@@ -26,14 +27,15 @@ HANDLERS['project.configure'] = {
   run: (s, cmd) => {
     const row = s.db.prepare('SELECT project_id, payload FROM projects').get() as { project_id: string; payload: string } | undefined;
     if (!row) throw new Refusal('대상 없음', '계획을 먼저 불러온다(plan import)');
-    const { permission_mode, repo } = cmd.args ?? {};
+    const { permission_mode, repo, budget_usd } = cmd.args ?? {};
+    if (budget_usd !== undefined && budget_usd !== null && !(typeof budget_usd === 'number' && budget_usd >= 0)) throw new Refusal('규칙 위반', '프로젝트 예산 상한은 0 이상의 금액(USD)이다');
     if (permission_mode !== undefined && (typeof permission_mode !== 'string' || !permission_mode)) throw new Refusal('규칙 위반', '권한 모드는 Claude Code가 받는 모드 이름이다');
     const p = JSON.parse(row.payload);
-    const settings = { ...p.settings, ...(permission_mode ? { permission_mode } : {}), ...(repo ? { repo } : {}) };
+    const settings = { ...p.settings, ...(permission_mode ? { permission_mode } : {}), ...(repo ? { repo } : {}), ...(budget_usd !== undefined ? { budget_usd } : {}) };
     s.db.prepare('UPDATE projects SET payload = ? WHERE project_id = ?').run(JSON.stringify({ ...p, settings }), row.project_id);
   },
 };
-export const projectSettings = (s: Store): { permission_mode?: string; repo?: string } =>
+export const projectSettings = (s: Store): { permission_mode?: string; repo?: string; budget_usd?: number | null } =>
   JSON.parse((s.db.prepare('SELECT payload FROM projects').get() as { payload: string } | undefined)?.payload ?? '{}').settings ?? {};
 
 // 취소 요청(Engine 명령 cancel): 대기 중이면 바로 취소, 실행 중이면 감독 프로세스에 알린다
@@ -43,10 +45,12 @@ HANDLERS['run.cancel'] = {
     const { run_id } = cmd.args ?? {};
     const r = runRow(s, run_id);
     if (!r) throw new Refusal('대상 없음', `Run ${run_id}을(를) 찾을 수 없다`);
-    if (r.state === '대기') {
+    if (r.state === '대기' || r.state === '일시 중단') {
       s.db.prepare("UPDATE tickets SET status = '취소' WHERE run_id = ?").run(run_id);
       setRun(s, run_id, { cancelled_by: cmd.principal }, '취소');
       emit({ type: 'run.state_changed', subject: run_id, issuer: 'Execution', payload: { run_id, to: '취소', reason: '사용자 취소' } });
+      // 예산·한도로 멈춘 Run이면 그 대기 사유도 닫는다
+      if (foldAll(s.events(), s.refCheck).waits.get(`W-${run_id}-resource`)?.open) emit({ type: 'wait.resolved', subject: r.task_id, issuer: 'Resource', payload: { wait_id: `W-${run_id}-resource` } });
     } else if (r.state === '실행 중') setRun(s, run_id, { cancel_requested: { by: cmd.principal, channel: cmd.channel } });
     else throw new Refusal('규칙 위반', `끝난 Run은 취소할 수 없다(${r.state})`);
   },
@@ -74,10 +78,11 @@ HANDLERS['node.events'] = {
 HANDLERS['node.finish'] = {
   principals: ['system'],
   run: (s, cmd, _p, emit) => {
-    const { run_id, node_id, iteration, holder, result, usage, transcript } = cmd.args;
+    const { run_id, node_id, iteration, holder, result, usage, transcript, billing } = cmd.args;
     mustHold(s, run_id, holder);
     if (transcript) emit({ type: 'agent.activity', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, kind: '메시지', summary: 'Runtime 출력 원문(transcript)', source: '시스템 기록', raw_ref: transcript } });
-    if (usage) emit({ type: 'usage.recorded', subject: run_id, issuer: 'Resource', payload: { run_id, node_id, cost_usd: usage.cost_usd, tokens: usage.tokens, reliability: '추정값' } });
+    // Runner가 보고한 비용은 클라이언트 추정치다. 구독 인증이면 청구액이 아니므로 과금 방식을 함께 남긴다(5-7)
+    if (usage) emit({ type: 'usage.recorded', subject: run_id, issuer: 'Resource', payload: { run_id, node_id, cost_usd: usage.cost_usd, tokens: usage.tokens, reliability: '추정값', billing: billing ?? '알 수 없음' } });
     emit({ type: 'node.finished', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, result } });
   },
 };
@@ -129,7 +134,7 @@ function promptOf(contract: any): string {
   ].join('\n');
 }
 
-export type StepResult = { result: '성공' | '실패' | '중단'; exit: number | null; cancelled: boolean; submission?: Submitted };
+export type StepResult = { result: '성공' | '실패' | '중단'; exit: number | null; cancelled: boolean; submission?: Submitted; paused?: string };
 
 /** Agent 노드 하나를 실행한다. 감독 임대를 가진 프로세스(holder)만 부른다. */
 export async function runAgentNode(s: Store, o: {
@@ -139,6 +144,9 @@ export async function runAgentNode(s: Store, o: {
   const run = runRow(s, o.run_id);
   if (!run || run.state !== '실행 중') throw new Error(`실행 중인 Run이 아니다 ${o.run_id}`);
   if (!holds(s, o.run_id, o.holder)) throw new Error(`감독 임대를 갖지 않았다 ${o.run_id}`);
+  // 예산이 이미 바닥났으면 새 단계를 시작하지 않고 멈춘다(5-6)
+  const before = stopIfExhausted(s, o.run_id, o.holder);
+  if (before) return { result: '중단', exit: null, cancelled: false, paused: before };
   const settings = projectSettings(s);
   if (!settings.permission_mode) throw new Error('Project 설정에 권한 모드가 없다. project.configure로 정한다(R-3 7)');
   if (!settings.repo) throw new Error('Project 설정에 git 저장소가 없다. project.configure로 정한다(1-1)');
@@ -162,6 +170,8 @@ export async function runAgentNode(s: Store, o: {
   const ids = { run_id: o.run_id, node_id: o.node_id, iteration: o.iteration, holder: o.holder };
   let pending: Draft['payload'][] = [];
   let resultDraft: Extract<Draft, { type: 'result' }>['payload'] | undefined;
+  let billing: string | undefined;
+  let limitHit = false;
   // 멈춘 이유: 다른 인터페이스의 취소 요청, 또는 임대를 잃음(다른 프로세스가 넘겨받았다. 이때는 아무것도 기록하지 않는다)
   let stopped: 'cancel' | 'lease' | undefined;
   const flush = () => {
@@ -180,6 +190,8 @@ export async function runAgentNode(s: Store, o: {
     for await (const msg of lines(h, raw)) for (const d of normalize(msg)) {
       if (d.type === 'agent.activity') pending.push(d.payload);
       else if (d.type === 'result') resultDraft = d.payload;
+      else if (d.type === 'init') billing = !d.payload.apiKeySource ? '알 수 없음' : d.payload.apiKeySource === 'none' ? '구독' : 'API';
+      else if (d.type === 'rate_limit' && d.payload.status === 'rejected') limitHit = true; // 구독 사용 한도 소진 신호(5-1)
     }
   } finally {
     clearInterval(tick);
@@ -196,10 +208,12 @@ export async function runAgentNode(s: Store, o: {
     write_scope: ticket.allowed?.write_scope ?? null, output_slots: contract.output_slots.map((x: any) => x.name),
     verifier_files: contract.conditions.flatMap((c: any) => c.verifier?.files ?? []) });
   ok(execute(s, { command: 'node.finish', principal: SYSTEM, channel: 'runner', args: { ...ids, result, transcript,
-    usage: resultDraft ? { cost_usd: resultDraft.cost_usd, tokens: resultDraft.tokens } : undefined } }), 'node.finish');
+    usage: resultDraft ? { cost_usd: resultDraft.cost_usd, tokens: resultDraft.tokens } : undefined, billing } }), 'node.finish');
   if (cancelled) ok(execute(s, { command: 'run.cancelled', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, holder: o.holder } }), 'run.cancelled');
   // 쓰기 범위 밖 변경: Run을 실패(쓰기 범위)로 닫는다. 다음 시도는 새 Run과 새 worktree로 한다(6-8 ③)
   if (submission?.scope_check === '거부') ok(execute(s, { command: 'run.fail', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, holder: o.holder,
     reason: '쓰기 범위', action: `쓰기 범위 밖 변경(${submission.rejected.join(', ')})을 보고 다시 실행할지 결정` } }), 'run.fail');
-  return { result, exit, cancelled, submission };
+  // 단계 경계: 예약·예산을 다 썼거나 사용 한도에 닿았으면 다음 단계로 가지 않고 멈춘다(5-6)
+  const paused = cancelled || submission?.scope_check === '거부' ? undefined : stopIfExhausted(s, o.run_id, o.holder, limitHit);
+  return { result, exit, cancelled, submission, paused };
 }

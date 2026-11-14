@@ -9,6 +9,7 @@ import { foldAll } from '../tools/readmodel.ts';
 import { execute, HANDLERS, Refusal } from './commands.ts';
 import { holds, realProcs, renewLease, type Holder } from './supervise.ts';
 import { projectSettings } from './step.ts';
+import { stopIfExhausted } from './budget.ts';
 import type { Store } from './store.ts';
 
 const SYSTEM = { kind: 'system' as const, id: 'orchestrator' };
@@ -92,6 +93,9 @@ export async function collectEvidence(s: Store, o: { run_id: string; holder: Hol
 
 /** 워크플로우의 자동 검사 노드 한 회차: 노드를 시작하고, 검사하고, 모두 통과했으면 성공으로 닫는다. */
 export async function runCheckNode(s: Store, o: { run_id: string; iteration: number; holder: Holder; submission_id: string; timeoutMs?: number }) {
+  // 예산이 바닥났으면 검사 단계도 시작하지 않는다(5-6)
+  const paused = stopIfExhausted(s, o.run_id, o.holder);
+  if (paused) throw new Error(`예산·한도 때문에 멈췄다(${paused}) ${o.run_id}`);
   const ids = { run_id: o.run_id, node_id: 'check', iteration: o.iteration, holder: o.holder };
   const ok = (r: ReturnType<typeof execute>, what: string) => { if (!r.ok) throw new Error(`${what}: ${r.reason} ${r.message}`); };
   ok(execute(s, { command: 'node.start', principal: SYSTEM, channel: 'runner', args: { ...ids, profile: { runtime: 'catena-runner', model: '검사 코드' } } }), 'node.start');
