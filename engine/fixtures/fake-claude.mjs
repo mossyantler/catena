@@ -23,6 +23,9 @@ if (mode === 'ok') {
   say({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] } });
   say({ type: 'assistant', message: { content: [{ type: 'text', text: '구현을 마쳤고 모든 테스트를 통과했습니다.' }] } });
   say({ type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0.12, usage: { input_tokens: 100, output_tokens: 50 } });
+} else if (mode === 'plan') {
+  say({ type: 'assistant', message: { content: [{ type: 'text', text: '계획을 만들었습니다.' }] } });
+  say({ type: 'result', subtype: 'success', is_error: false, result: process.env.FAKE_PLAN ?? '', total_cost_usd: 0.01, usage: { input_tokens: 10, output_tokens: 5 } });
 } else if (mode === 'slow') {
   spawn('sleep', ['120'], { stdio: 'ignore' }); // 같은 프로세스 그룹에 남는 하위 프로세스
   say({ type: 'assistant', message: { content: [{ type: 'text', text: '작업을 시작합니다.' }] } });

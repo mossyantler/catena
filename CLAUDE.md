@@ -25,6 +25,7 @@ node --test --test-name-pattern="E4" tools/fold.test.ts          # 시험 하나
 node tools/fold.ts scenarios/roombook [--at N]                   # 읽기 모델을 글로 출력(N = 재생 위치)
 node tools/catena.ts status [--bundle 폴더 | --store 폴더] [--at N] [--json]  # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity·raw <sha256:원문>. JSON schema_version 2
 node tools/catena.ts plan import plan/catena.plan.json [--store 폴더]  # 계획 불러오기(명령 계층). 기본 저장소 ~/.catena/projects/<project_id>
+node tools/catena.ts plan from-goal "<goal>" --agent codex|claude-code [--project-id ID] [--store 폴더]  # Agent에게 goal을 주어 계획을 받아 불러오기(T38)
 node scenarios/roombook.build.ts                                 # 시나리오 묶음 다시 만들기(expense.build.ts도 같다)
 node tools/plan.ts [--hash <Task ID>]                            # Catena 제작 공정: 계획 검사, Task 상태, 착수 가능 Task
 tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보기: tailnet 안에서만 https://<기기>.<tailnet>.ts.net:5180 (끄기: --https=5180 off)
@@ -100,6 +101,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `accept.ts`: 승인과 검수(7-5, 9-10). 명령 `approval.request`(사용자 확인 조건을 결과에 대해 묻기), `approval.decide`(사람·대화형 CLI `cli-tty`에서만, 결정에 채널과 14-15 한계 문구를 남김), `acceptance.record`(같은 제출 기록의 통과한 근거와 승인으로 결과 항목·Task 검수, Baseline·근거·승인·commit을 함께 기록). CLI는 `catena approve <승인 요청 ID> [--reject --comment 이유] --store 폴더`이고, 터미널에서 확인 입력을 받는다. Runner는 Agent 환경에 `CATENA_RUN_ID`를 넣어 그 안에서 부른 승인을 Runner 채널로 거부한다.
 - `budget.ts`: 예산과 사용 한도(5-1, 5-6, 5-7). 프로젝트 예산 상한(`project.configure`의 `budget_usd`)이 있으면 `run.start`가 남은 예산(상한 - API 사용액 - 정산 전 예약)을 넘는 예약을 거부한다. `stopIfExhausted`는 단계 경계에서 Run의 예약 소진·예산 소진·구독 사용 한도 신호(`rate_limit_event` rejected)를 보고 Run을 `일시 중단`으로 멈추고 자원 대기 사유를 낸다(명령 `run.pause`, 재개는 확장이라 취소 뒤 새 Run). 사용량은 과금 방식(`billing`: API·구독, Runner init의 `apiKeySource`로 판단)과 함께 기록하고, 구독 사용량은 금액 합계에 넣지 않는다.
 - `verify.ts`: Agent 결과 검사(A-6). `runCheckNode`가 검사 노드를 열고 `collectEvidence`로 결과 commit을 새 git worktree(`<저장소 폴더>/checks/<근거 ID>`)에 꺼내 Task 명세의 `verify.command`를 실행한 뒤, 로그·환경·결과를 검수 근거로 남기고(명령 `evidence.record`) checkout을 지운다. 검사 방법이 없는 auto 조건은 `미실행`이다.
+- `goalplan.ts`: Agent 계획을 공정으로(T38). `askAgent`가 Agent를 계획만 내게 띄우고(Claude Code `--permission-mode plan`, Codex `-s read-only`) 마지막 응답을 받으며, `importAgentPlan`이 응답에서 계획 JSON을 꺼내 `plan.import`와 같은 검사로 불러온다. 어기면 아무것도 남기지 않는다. 원문은 저장소 폴더의 `goal-plan.json`에 남는다.
 - `codex.ts`: Codex 실행기(T37, 14-14). `prepareCodex`가 `codex exec --json --ephemeral -C <worktree> -s workspace-write -`를 만들고, `normalizeCodex`가 JSONL(끝난 명령 실행·파일 변경·메시지, 턴 끝 토큰)을 Claude Code와 같은 활동 기록 초안으로 바꾼다. 계획 파일 Task의 `agent`(claude-code / codex)가 Ticket의 `profile.runtime`이 되고, `step.ts`가 그것으로 실행기를 고른다. 시험은 `fixtures/fake-codex.mjs`를 쓴다.
 - `step.ts`: Agent 노드 하나 실행. 명령 `project.configure`(권한 모드, 저장소), `run.cancel`(대기면 바로 취소, 실행 중이면 취소 요청), `node.start`·`node.events`·`node.finish`·`run.cancelled`. `runAgentNode`가 Run 전용 worktree(`<저장소 폴더>/worktrees/<run_id>`, Baseline의 base_ref)를 만들고 Runner를 띄워, 주기마다 활동을 기록하고 임대를 연장하고 취소 요청을 확인한다. 끝나면 transcript를 원문으로 저장하고(시스템 기록) 사용량(추정값)과 노드 끝을 남긴다. 시험은 `fixtures/fake-claude.mjs`(같은 stream-json을 내는 가짜 CLI)를 쓴다.
 

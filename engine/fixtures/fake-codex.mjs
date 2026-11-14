@@ -17,6 +17,9 @@ if (mode === 'ok') {
   say({ type: 'item.completed', item: { id: 'item_2', type: 'reasoning', text: '파일을 만들자' } });
   say({ type: 'item.completed', item: { id: 'item_3', type: 'agent_message', text: '인사 파일을 만들었고 테스트를 통과했습니다.' } });
   say({ type: 'turn.completed', usage: { input_tokens: 200, cached_input_tokens: 50, output_tokens: 30 } });
+} else if (mode === 'plan') {
+  say({ type: 'item.completed', item: { id: 'item_0', type: 'agent_message', text: process.env.FAKE_PLAN ?? '' } });
+  say({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } });
 } else {
   say({ type: 'turn.failed', error: { message: '모의 실패' } });
   process.exit(1);
