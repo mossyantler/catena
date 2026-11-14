@@ -214,7 +214,7 @@ export function DagPage({ id: idArg }: { id?: string }) {
             <a href={`#task-${sel}`}>Task 상세</a>
           </Button>
           <Button asChild size="sm" variant="outline">
-            <a href={`#agent-${sel}`}>Agent Graph</a>
+            <a href={`#agent-${sel}`}>Agent 그래프</a>
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setPicked(null)}>
             선택 해제
@@ -265,7 +265,7 @@ export function AgentPage({ id }: { id: string }) {
   const edges: GraphEdge[] = g.edges.map((e: any) => ({
     id: `${e.from}>${e.to}`, from: e.from, to: e.to,
     tone: e.kind === '반복' ? 'back' : 'leaf', layout: e.kind !== '반복',
-    label: e.kind === '반복' ? `수정 반복 ${e.loops}회` : ['분기', '합류'].includes(e.kind) ? e.kind : undefined,
+    label: e.kind === '반복' ? e.loops ? `수정 반복 ${e.loops}회` : '수정 반복' : ['분기', '합류'].includes(e.kind) ? e.kind : undefined,
   }))
   const wn = wf.nodes.get(sel)
   const act = RM.nodeActivity(model, id, sel)
@@ -307,9 +307,9 @@ export function AgentPage({ id }: { id: string }) {
   return (
     <>
       <PageHeader
-        eyebrow="Agent Graph"
+        eyebrow="Agent 그래프"
         title={<><Tid id={id} /> {n.name}</>}
-        tabTitle={`${id} Agent Graph`}
+        tabTitle={`${id} Agent 그래프`}
         description={run ? `${run.id} · 실행 ${run.attempt}회차 · ${run.state}${run.reason ? ` (${run.reason})` : ''}` : '아직 실행하지 않아 계획된 단계만 보여 줍니다.'}
         actions={
           <Button asChild variant="outline">
@@ -318,7 +318,7 @@ export function AgentPage({ id }: { id: string }) {
         }
       />
       <Legend>
-        <LegendItem>단계 종류: 계획 · 구현 · 검증 · 승인 (프로젝트의 작업 단계와 다름)</LegendItem>
+        <LegendItem>단계 종류: 계획 · 구현 · 검사 · 승인 (프로젝트의 작업 단계와 다름)</LegendItem>
         <LegendItem tone="back">수정 반복: 검사에 실패해 다시 고친 횟수</LegendItem>
         <LegendItem>파란 테두리: 지금 실행 중인 노드</LegendItem>
       </Legend>

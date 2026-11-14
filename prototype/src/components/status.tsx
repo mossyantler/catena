@@ -2,7 +2,7 @@
 import type { CSSProperties } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { label, TONE_BG, toneOf, type Tone } from '@/lib/status'
+import { label, stageLabel, TONE_BG, toneOf, type Tone } from '@/lib/status'
 import { cn } from '@/lib/utils'
 
 /** rep: Task 대표 상태(실패·종료·취소·대기를 실행 기준 이름으로 보인다) */
@@ -16,7 +16,7 @@ export function StatusBadge({ state, tone, rep, className }: { state: string; to
 
 /** Agent Graph의 실행 단계(계획·구현·검증·승인). Project Phase와 다르므로 색 없이 테두리만. */
 export function StageTag({ stage }: { stage: string }) {
-  return <Badge variant="quiet">{stage}</Badge>
+  return <Badge variant="quiet">{stageLabel(stage)}</Badge>
 }
 
 export function Tid({ id, className }: { id: string; className?: string }) {

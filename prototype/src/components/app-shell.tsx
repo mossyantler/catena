@@ -84,7 +84,7 @@ function WbsTree({ route }: { route: Route }) {
         {ns.map((n) => (
           <SidebarMenuSubItem key={n.id}>
             <SidebarMenuSubButton asChild isActive={sel === n.id}>
-              <a href={href(n)}>{label(n)}</a>
+              <a href={href(n)} title={n.name}>{label(n)}</a>
             </SidebarMenuSubButton>
             {n.kind === 'summary' ? sub(n.id) : null}
           </SidebarMenuSubItem>
@@ -354,7 +354,7 @@ export function AppShell({ route, children }: { route: Route; children: ReactNod
   const todos = RM.inbox(model)
   return (
     // 사이드바는 WBS 트리가 세 단계까지 들어가므로 기본(16rem)보다 넓게 둔다.
-    <SidebarProvider style={{ '--sidebar-width': '19rem' } as CSSProperties}>
+    <SidebarProvider style={{ '--sidebar-width': '22rem' } as CSSProperties}>
       <AppSidebar route={route} />
       <SidebarInset>
         <header className="z-10 flex flex-col gap-2.5 border-b bg-background px-4 py-3 lg:sticky lg:top-0 lg:rounded-t-xl lg:px-8">

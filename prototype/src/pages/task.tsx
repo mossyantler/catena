@@ -8,7 +8,7 @@ import { CondCount, PhaseTag, TaskState, useCard } from '@/components/task'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import * as RM from '@/lib/rm'
-import { hm, profText, waitHref, waitLabel, when } from '@/lib/status'
+import { hm, issuerLabel, profText, waitHref, waitLabel, when } from '@/lib/status'
 import { useCatena } from '@/lib/store'
 
 function Tbl({ head, children }: { head: string[]; children: ReactNode }) {
@@ -78,7 +78,7 @@ function TaskDetail({ id }: { id: string }) {
         actions={
           <>
             <Button asChild>
-              <a href={`#agent-${id}`}>Agent Graph</a>
+              <a href={`#agent-${id}`}>Agent 그래프</a>
             </Button>
             {openAppr.map((a) => (
               <Button key={a.approval_id} asChild variant="outline">
@@ -95,7 +95,7 @@ function TaskDetail({ id }: { id: string }) {
         <KeyValues
           items={[
             ['작업 상태', <TaskState key="state" id={id} />],
-            ['검수된 완료 조건', <CondCount key="cond" id={id} />],
+            ['완료 조건', <CondCount key="cond" id={id} />],
             [
               '보류 사유',
               card.waits.length
@@ -104,7 +104,7 @@ function TaskDetail({ id }: { id: string }) {
                       <StatusBadge state={waitLabel(w)} tone={w.action.actor === '사용자' ? 'user' : 'wait'} />
                       {w.resolve}
                       <span className="text-xs text-muted-foreground">
-                        {w.issuer}
+                        {issuerLabel(w.issuer)}
                         {w.raised_at ? ` · ${when(w.raised_at)}부터` : ''}
                       </span>
                     </div>
@@ -117,9 +117,12 @@ function TaskDetail({ id }: { id: string }) {
                 ? card.waits.map((w) => (
                     <div key={w.id}>
                       {w.action.actor}: {w.action.text}{' '}
-                      <a href={waitHref(id, w)} className="underline-offset-4 hover:underline">
-                        {w.action.screen}
-                      </a>
+                      {/* 지금 보고 있는 Task 상세로 가는 링크는 뺀다 */}
+                      {waitHref(id, w) === `#task-${id}` ? null : (
+                        <a href={waitHref(id, w)} className="underline-offset-4 hover:underline">
+                          {w.action.screen} 열기
+                        </a>
+                      )}
                     </div>
                   ))
                 : '없음',

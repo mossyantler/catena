@@ -18,6 +18,8 @@ export function OverviewPage() {
   const a = RM.aggregate(model, ids)
   const todos = RM.inbox(model)
   const blockers = [...RM.blocking(model)].sort((x, y) => y[1] - x[1])
+  const TOP = 5 // 많이 기다리는 순으로 다섯까지만. 나머지는 작업 네트워크에서 본다
+  const shownBlockers = blockers.slice(0, TOP)
   const groups = new Map<string, string[]>()
   for (const id of ids) {
     const r = RM.card(model, id).rep
@@ -81,8 +83,9 @@ export function OverviewPage() {
         </Section>
         <Section title="후행 Task가 기다리는 Task" description="선행 Task 때문에 대기 중인 후행 Task 수">
           {blockers.length ? (
+            <>
             <ul className="flex flex-col gap-2">
-              {blockers.map(([src, n]) => (
+              {shownBlockers.map(([src, n]) => (
                 <li key={src} className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -100,6 +103,12 @@ export function OverviewPage() {
                 </li>
               ))}
             </ul>
+              {blockers.length > TOP ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  외 {blockers.length - TOP}개는 <a href="#dag" className="underline-offset-4 hover:underline">작업 네트워크</a>에서 볼 수 있습니다.
+                </p>
+              ) : null}
+            </>
           ) : (
             <Notice>기다리는 후행 Task가 없습니다.</Notice>
           )}

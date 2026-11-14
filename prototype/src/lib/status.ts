@@ -32,6 +32,15 @@ export const WAIT_LABEL: Record<string, string> = {
 }
 export const waitLabel = (w: Wait) => WAIT_LABEL[w.type] ?? w.type
 
+// 기록한 Core 이름(명세 용어)을 화면에서는 우리말로
+const ISSUER: Record<string, string> = {
+  Planning: '계획', Execution: '실행', Resource: '예산·자원', 'Validation & Acceptance': '검수', Validation: '검수',
+  'Graph Design': '워크플로우', Management: '관리', 'Policy & Authorization': '권한', Policy: '권한', Change: '변경',
+}
+export const issuerLabel = (issuer: string) => ISSUER[issuer] ?? issuer
+// Agent 그래프의 단계 이름. 검증은 화면에서 검사로 부른다(2026-11-14 문구 결정)
+export const stageLabel = (stage: string) => (stage === '검증' ? '검사' : stage)
+
 export const EXECUTOR: Record<string, string> = { agent: 'Agent', code: '검사 코드', human: '사용자' }
 
 /** 차단 이유에서 해소 행동 화면으로 가는 주소. */
