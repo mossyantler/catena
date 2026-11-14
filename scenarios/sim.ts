@@ -67,7 +67,7 @@ export function scenario(DATASET: string, day0: string) {
     nodes: [
       { node_id: 'work', name: '작성·구현', stage: '구현', executor: 'agent', role: 'Worker' },
       { node_id: 'check', name: '자동 검사', stage: '검증', executor: 'code' },
-      { node_id: 'approve', name: '인수 승인', stage: '승인', executor: 'human', role: '승인자' },
+      { node_id: 'approve', name: '검수 승인', stage: '승인', executor: 'human', role: '승인자' },
     ],
     edges: [{ from: 'work', to: 'check', kind: '순차' }, { from: 'check', to: 'work', kind: '반복' }, { from: 'check', to: 'approve', kind: '순차' }],
   });

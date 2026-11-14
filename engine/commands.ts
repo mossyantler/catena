@@ -34,7 +34,7 @@ const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 // 정의는 내용 해시 산출물로 두고 workflow_ref로 가리킨다(3-5: 공개된 정의는 바꾸지 않고 새 버전을 만든다).
 const WORK = { node_id: 'work', name: '작성·구현', stage: '구현', executor: 'agent', role: 'Worker' };
 const CHECK = { node_id: 'check', name: '자동 검사', stage: '검증', executor: 'code' };
-const APPROVE = { node_id: 'approve', name: '인수 승인', stage: '승인', executor: 'human', role: '승인자' };
+const APPROVE = { node_id: 'approve', name: '검수 승인', stage: '승인', executor: 'human', role: '승인자' };
 const LOOP = [{ from: 'work', to: 'check', kind: '순차' }, { from: 'check', to: 'work', kind: '반복' }];
 export const TEMPLATES = {
   approve: { template_id: 'impl-check-fix-approve', version: 1, repair_limit: 3, nodes: [WORK, CHECK, APPROVE], edges: [...LOOP, { from: 'check', to: 'approve', kind: '순차' }] },

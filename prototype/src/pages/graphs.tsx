@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { scc, type LGroup } from '@/lib/graph'
 import * as RM from '@/lib/rm'
-import { EXECUTOR, hm, profText } from '@/lib/status'
+import { EXECUTOR, hm, profText, type Profile } from '@/lib/status'
 import { useCatena } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -33,8 +33,8 @@ const leafEdge = (e: { from: string; to: string; count: number; accepted: number
 function DepLegend({ children }: { children?: ReactNode }) {
   return (
     <Legend>
-      <LegendItem tone="leaf">원본 의존. 숫자는 필요한 슬롯 중 인수된 수</LegendItem>
-      <LegendItem tone="open">인수 안 된 슬롯이 남은 의존</LegendItem>
+      <LegendItem tone="leaf">Task 간 연결. 숫자는 필요한 입력 항목 가운데 검수된 수</LegendItem>
+      <LegendItem tone="open">아직 검수되지 않은 입력 항목이 있는 연결</LegendItem>
       {children}
     </Legend>
   )
@@ -52,8 +52,8 @@ function ExpandDialog({ open, onClose }: { open: Expand | null; onClose: () => v
     <Dialog open={!!open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
-          <DialogTitle>{open ? `${open.title} 원본 의존` : ''}</DialogTitle>
-          <DialogDescription>{open?.what}에 묶인 원본 의존만 Task 단위로 펼쳤습니다. 화살표 방향이 실제 선후입니다.</DialogDescription>
+          <DialogTitle>{open ? `${open.title}의 Task 간 연결` : ''}</DialogTitle>
+          <DialogDescription>{open?.what}에 묶인 Task 간 연결을 펼쳤습니다. 화살표는 결과가 넘어가는 방향입니다.</DialogDescription>
         </DialogHeader>
         {open ? (
           <FlowGraph
@@ -85,13 +85,13 @@ export function WbsPage({ id: idArg }: { id?: string }) {
     .filter((m) => m.length > 1)
     .map((m, i) => ({
       id: `grp-${i}`,
-      label: '서로 얽힌 묶음 · 배치 순서 없음',
+      label: '서로 결과를 주고받는 묶음 · 앞뒤 순서 없음',
       members: m,
       note: edges
         .filter((e) => together(m, e))
         .sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to))
         .map((e) => `${nameOf(e.from)} → ${nameOf(e.to)} ${e.count}`)
-        .concat('눌러서 펼치기')
+        .concat('눌러서 Task 간 연결 보기')
         .join(' · '),
     }))
   const bundleOf = (g: LGroup): Expand => ({
@@ -102,8 +102,8 @@ export function WbsPage({ id: idArg }: { id?: string }) {
 
   const drawn: GraphEdge[] = edges
     .filter((e) => !groups.some((g) => together(g.members, e)))
-    .map((e): GraphEdge => (e.aggregated ? { id: `${e.from}>${e.to}`, from: e.from, to: e.to, tone: 'agg', label: `의존 ${e.count} · 인수 ${e.accepted}` } : leafEdge(e)))
-  const edgeOf = (e: GraphEdge): Expand => ({ title: `${nameOf(e.from)} → ${nameOf(e.to)}`, what: '집계 엣지', pairs: [[e.from, e.to]] })
+    .map((e): GraphEdge => (e.aggregated ? { id: `${e.from}>${e.to}`, from: e.from, to: e.to, tone: 'agg', label: `연결 ${e.count} · 검수 ${e.accepted}` } : leafEdge(e)))
+  const edgeOf = (e: GraphEdge): Expand => ({ title: `${nameOf(e.from)} → ${nameOf(e.to)}`, what: '요약 엣지', pairs: [[e.from, e.to]] })
   const nodes: GraphNode[] = kids.map((n) => {
     const ext = external.get(n.id)
     if (n.kind === 'summary')
@@ -111,7 +111,7 @@ export function WbsPage({ id: idArg }: { id?: string }) {
     const closed = RM.CLOSED.includes(n.lifecycle)
     return {
       id: n.id, w: W, h: ext ? TASK_H + 18 : TASK_H, label: `${n.id} ${n.name}`, href: `#task-${n.id}`, emphasis: closed ? ['closed'] : [],
-      content: <TaskNodeContent id={n.id} extra={ext ? `범위 밖 선행 ${ext.in} · 후행 ${ext.out}` : undefined} />,
+      content: <TaskNodeContent id={n.id} extra={ext ? `범위 밖 선행 Task ${ext.in}개 · 후행 Task ${ext.out}개` : undefined} />,
     }
   })
   const aggs = drawn.filter((e) => e.tone === 'agg')
@@ -119,22 +119,22 @@ export function WbsPage({ id: idArg }: { id?: string }) {
   return (
     <>
       <PageHeader
-        eyebrow="WBS 공정표"
-        title={`${title} 하위 공정표`}
-        description={`하위 항목 ${kids.length}개. 요약 노드는 하위 Task를 집계한 값입니다.`}
+        eyebrow="공정표"
+        title={`${title} 공정표`}
+        description={`하위 항목 ${kids.length}개. 요약 노드는 하위 Task의 현황을 합쳐 보여 줍니다.`}
         actions={
           <Button asChild variant="outline">
-            <a href={`#dag${id ? `-${id}` : ''}`}>이 범위 Task 전체 펼치기</a>
+            <a href={`#dag${id ? `-${id}` : ''}`}>이 범위의 작업 네트워크 보기</a>
           </Button>
         }
       />
       <DepLegend>
-        <LegendItem tone="agg">집계 엣지: 하위 Task 의존을 묶은 표시이며 실행 순서를 뜻하지 않음</LegendItem>
-        <LegendItem>점선 테두리: 집계 엣지로 서로 오가는 노드 묶음. 안쪽 화살표 대신 방향별 개수를 적음</LegendItem>
+        <LegendItem tone="agg">요약 엣지: 하위 Task 사이의 연결을 합친 선. 실행 순서가 아님</LegendItem>
+        <LegendItem>점선 테두리: 서로 결과를 주고받는 묶음. 안쪽에는 화살표 대신 방향별 연결 수</LegendItem>
       </DepLegend>
       {aggs.length || groups.length ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          원본 의존 펼치기(그림에서 엣지나 묶음을 눌러도 됩니다)
+          Task 간 연결 보기(그림에서 엣지나 묶음을 눌러도 됩니다)
           {groups.map((g) => (
             <Button key={g.id} size="xs" variant="outline" onClick={() => setOpen(bundleOf(g))}>
               {bundleOf(g).title}
@@ -190,13 +190,13 @@ export function DagPage({ id: idArg }: { id?: string }) {
   return (
     <>
       <PageHeader
-        eyebrow="의존 관계"
-        title={`${id ? nameOf(id) : model.project.name} 의존 관계`}
-        description={`Task ${ids.length}개. 지금 착수 가능: ${ready.length ? ready.join(', ') : '없음'}`}
+        eyebrow="작업 네트워크"
+        title={`${id ? nameOf(id) : model.project.name} 작업 네트워크`}
+        description={`Task ${ids.length}개. 지금 시작 가능: ${ready.length ? ready.join(', ') : '없음'}`}
         actions={
           id ? (
             <Button asChild variant="outline">
-              <a href={`#wbs-${id}`}>하위 공정표로</a>
+              <a href={`#wbs-${id}`}>하위 공정표 보기</a>
             </Button>
           ) : null
         }
@@ -221,10 +221,10 @@ export function DagPage({ id: idArg }: { id?: string }) {
           </Button>
         </div>
       ) : (
-        <Notice>Task를 고르면 선행·후행·병렬 가능 Task를 카드 오른쪽 위에 표시합니다. 판단은 원본 의존으로만 합니다.</Notice>
+        <Notice>Task를 고르면 선행·후행·병렬 가능 Task를 카드 오른쪽 위에 표시합니다. 판단은 Task 간 연결로만 합니다.</Notice>
       )}
       <DepLegend>
-        <LegendItem>굵은 선: 고른 Task로 이어지는 의존 경로</LegendItem>
+        <LegendItem>굵은 선: 선택한 Task와 이어진 경로</LegendItem>
       </DepLegend>
       <FlowGraph nodes={nodes} edges={edges} labels="head" minimap={ids.length > 20} />
     </>
@@ -237,7 +237,7 @@ export function AgentPage({ id }: { id: string }) {
   const n = node(id)
   const wf = model.workflows.get(id)
   const [picked, setPicked] = useState<string | null>(null)
-  if (!n || !wf) return <Notice>Agent Graph가 없는 Task입니다.</Notice>
+  if (!n || !wf) return <Notice>Agent 그래프가 없는 Task입니다.</Notice>
   const g = RM.agentGraph(model, id)
   const run = g.run
   const sel: string = picked && wf.nodes.has(picked) ? picked : (g.nodes.find((x: any) => run?.active.has(x.node_id)) ?? g.nodes[0]).node_id
@@ -257,15 +257,15 @@ export function AgentPage({ id }: { id: string }) {
           <StatusBadge state={gn.status} tone={gn.status === '시작 전' ? 'muted' : undefined} />
           {gn.runs > 1 ? <span className="font-mono text-muted-foreground">{gn.runs}회</span> : null}
         </span>
-        <span className="truncate text-muted-foreground">수행 {gn.instances.length ? gn.instances.join(', ') : '없음'}</span>
-        {gn.profiles.length ? <span className="truncate text-muted-foreground">실행 {gn.profiles.map(profText).join(', ')}</span> : null}
+        <span className="truncate text-muted-foreground">담당 {gn.instances.length ? gn.instances.join(', ') : '없음'}</span>
+        {gn.profiles.length ? <span className="truncate text-muted-foreground">{gn.profiles.map((p: Profile) => `도구 ${p.runtime} · 모델 ${p.model}`).join(', ')}</span> : null}
       </>
     ),
   }))
   const edges: GraphEdge[] = g.edges.map((e: any) => ({
     id: `${e.from}>${e.to}`, from: e.from, to: e.to,
     tone: e.kind === '반복' ? 'back' : 'leaf', layout: e.kind !== '반복',
-    label: e.kind === '반복' ? `반복 ${e.loops}회` : ['분기', '합류'].includes(e.kind) ? e.kind : undefined,
+    label: e.kind === '반복' ? `수정 반복 ${e.loops}회` : ['분기', '합류'].includes(e.kind) ? e.kind : undefined,
   }))
   const wn = wf.nodes.get(sel)
   const act = RM.nodeActivity(model, id, sel)
@@ -283,7 +283,7 @@ export function AgentPage({ id }: { id: string }) {
         <>
           {a.actor.role ?? ''} <span className="font-mono">{a.actor.instance}</span> · {a.kind}
           {a.to_instance ? <> → <span className="font-mono">{a.to_instance}</span></> : null}{' '}
-          <Badge variant={a.source === 'Agent 보고' ? 'wait' : 'quiet'}>{a.source}{a.source === 'Agent 보고' ? ' · 증거 아님' : ''}</Badge>
+          <Badge variant={a.source === 'Agent 보고' ? 'wait' : 'quiet'}>{a.source}{a.source === 'Agent 보고' ? ' · 검수 근거 아님' : ''}</Badge>
         </>
       ),
       body: <>{a.summary} <RawButton refId={a.raw_ref} title={`${a.actor.instance} 활동 원문`} /></>,
@@ -291,12 +291,12 @@ export function AgentPage({ id }: { id: string }) {
     ...act.subs.map((s: any) => ({
       at: s.at,
       who: <>Catena · 제출 기록</>,
-      body: <><span className="font-mono">{s.submission_id}</span> 고정 <RawButton refId={s.diff_ref} title={`${s.submission_id} 변경 내용`} label="변경 내용" /></>,
+      body: <><span className="font-mono">{s.submission_id}</span>을 검사 대상으로 고정 <RawButton refId={s.diff_ref} title={`${s.submission_id} 변경 내용`} label="변경 내용" /></>,
     })),
     ...act.evs.map((e: any) => ({
       at: e.at,
-      who: <>검사 코드 · 증거 <Badge variant="quiet">시스템 기록</Badge></>,
-      body: <>{e.condition_id} <StatusBadge state={e.result} /> <RawButton refId={e.raw_log_ref} title={`${e.evidence_id} 검사 로그`} label="로그" /></>,
+      who: <>검사 코드 · 검수 근거 <Badge variant="quiet">시스템 기록</Badge></>,
+      body: <>{e.condition_id} <StatusBadge state={e.result} /> <RawButton refId={e.raw_log_ref} title={`${e.evidence_id} 검사 로그`} label="로그 보기" /></>,
     })),
     ...act.approvals.map((a: any) => ({
       at: a.requested,
@@ -310,7 +310,7 @@ export function AgentPage({ id }: { id: string }) {
         eyebrow="Agent Graph"
         title={<><Tid id={id} /> {n.name}</>}
         tabTitle={`${id} Agent Graph`}
-        description={run ? `${run.id} · 시도 ${run.attempt} · ${run.state}${run.reason ? ` (${run.reason})` : ''}` : '아직 Run이 없어 정의만 보여 줍니다.'}
+        description={run ? `${run.id} · 실행 ${run.attempt}회차 · ${run.state}${run.reason ? ` (${run.reason})` : ''}` : '아직 실행하지 않아 계획된 단계만 보여 줍니다.'}
         actions={
           <Button asChild variant="outline">
             <a href={`#task-${id}`}>Task 상세</a>
@@ -318,8 +318,8 @@ export function AgentPage({ id }: { id: string }) {
         }
       />
       <Legend>
-        <LegendItem>단계 종류: 계획 · 구현 · 검증 · 승인 (Project Phase와 다름)</LegendItem>
-        <LegendItem tone="back">반복(수정 루프, 지금까지 돈 횟수)</LegendItem>
+        <LegendItem>단계 종류: 계획 · 구현 · 검증 · 승인 (프로젝트의 작업 단계와 다름)</LegendItem>
+        <LegendItem tone="back">수정 반복: 검사에 실패해 다시 고친 횟수</LegendItem>
         <LegendItem>파란 테두리: 지금 실행 중인 노드</LegendItem>
       </Legend>
       <FlowGraph nodes={nodes} edges={edges} />
@@ -327,7 +327,7 @@ export function AgentPage({ id }: { id: string }) {
         title={`${wn.name} 활동 기록`}
         description={`${wn.stage} 단계 · ${EXECUTOR[wn.executor]}${act.cost ? ` · 사용량 $${act.cost.toFixed(2)} (추정값)` : ''}`}
       >
-        <Notice>점선 항목은 Agent가 스스로 보고한 내용입니다. 증거가 아니며, 검사 결과와 다를 수 있습니다.</Notice>
+        <Notice>점선 항목은 Agent가 스스로 보고한 내용입니다. 검수 근거가 아니며, 검사 결과와 다를 수 있습니다.</Notice>
         {timeline.length ? (
           <ol className="flex flex-col gap-2">
             {timeline.map((t, i) => (

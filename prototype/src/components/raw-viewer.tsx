@@ -35,7 +35,7 @@ export function RawViewerProvider({ children }: { children: ReactNode }) {
           <DialogHeader>
             <DialogTitle>{shown?.title}</DialogTitle>
             <DialogDescription>
-              <span className="font-mono">{f?.ok ? `sha256:${shown!.hex.slice(0, 12)}… · 해시 확인됨${sim ? ' · 시뮬레이션 원문' : ''}` : (f?.err ?? '원문 없음')}</span>
+              <span className="font-mono">{f?.ok ? `sha256:${shown!.hex.slice(0, 12)}… · 해시 확인됨${sim ? ' · 시뮬레이션 원문' : ''}` : (f?.err ?? '원문을 찾을 수 없습니다')}</span>
             </DialogDescription>
           </DialogHeader>
           <DiffText text={f?.ok ? f.text : ''} />

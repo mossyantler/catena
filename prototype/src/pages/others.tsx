@@ -7,14 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import * as RM from '@/lib/rm'
-import { waitLabel, when } from '@/lib/status'
+import { label, waitLabel, when } from '@/lib/status'
 import { useCatena } from '@/lib/store'
 
 // ---------------- 승인 ----------------
 export function ApprovalPage({ id }: { id: string }) {
   const { model, bundle, nameOf } = useCatena()
   const a = model.approvals.get(id)
-  if (!a) return <Notice>이 재생 위치에는 승인 {id}이 없습니다.</Notice>
+  if (!a) return <Notice>이 재생 위치에는 승인 요청 {id}이 없습니다.</Notice>
   const s = model.submissions.get(a.submission_id)
   const c = model.contracts.get(a.task)
   const evs = [...model.evidence.values()].filter((e) => e.submission_id === a.submission_id)
@@ -27,15 +27,15 @@ export function ApprovalPage({ id }: { id: string }) {
             {a.task} {nameOf(a.task)}
           </a>
         }
-        title={<>승인 <span className="font-mono">{id}</span></>}
-        tabTitle={`승인 ${id}`}
+        title={<>승인 요청 <span className="font-mono">{id}</span></>}
+        tabTitle={`승인 요청 ${id}`}
         actions={a.decision ? <StatusBadge state={a.decision} /> : <StatusBadge state="결정 전" />}
       />
       <Section title="승인할 내용">
         <KeyValues
           items={[
             ['종류', `${a.kind} 승인`],
-            ['요청', when(a.requested)],
+            ['요청 시각', when(a.requested)],
             [
               '승인할 조건',
               a.condition_ids.map((cid: string) => (
@@ -44,7 +44,7 @@ export function ApprovalPage({ id }: { id: string }) {
                 </div>
               )),
             ],
-            ['대상', <>제출 기록 <span className="font-mono">{a.submission_id}</span>. 승인은 이 제출 기록에만 적용됩니다.</>],
+            ['검토할 제출 기록', <><span className="font-mono">{a.submission_id}</span>. 승인은 이 제출 기록에만 적용됩니다. 이후 고친 결과는 다시 승인해야 합니다.</>],
             ...(a.decision ? ([['결정', `${a.decision} · ${when(a.decided)} · ${a.comment ?? ''}`]] as [string, string][]) : []),
           ]}
         />
@@ -53,15 +53,15 @@ export function ApprovalPage({ id }: { id: string }) {
           <Button variant="outline" disabled>
             반려
           </Button>
-          <span className="text-xs text-muted-foreground">Product MVP는 읽기 전용입니다. 승인 처리는 Integrated MVP부터 동작합니다.</span>
+          <span className="text-xs text-muted-foreground">지금 시안에서는 결과를 볼 수만 있습니다. 승인·반려는 아직 할 수 없습니다.</span>
         </div>
       </Section>
-      <Section title="같은 제출 기록의 증거">
+      <Section title="같은 제출 기록의 검수 근거">
         {evs.length ? (
           <Table>
             <TableHeader>
               <TableRow>
-                {['증거', '조건', '결과', '검증 정의', '로그'].map((h) => (
+                {['검수 근거', '조건', '결과', '검사 방법', '로그'].map((h) => (
                   <TableHead key={h}>{h}</TableHead>
                 ))}
               </TableRow>
@@ -75,17 +75,17 @@ export function ApprovalPage({ id }: { id: string }) {
                     <StatusBadge state={e.result} />
                   </TableCell>
                   <TableCell className="whitespace-normal">
-                    {e.verifier_ref ? <RawButton refId={e.verifier_ref} title="검증 정의" /> : <span className="text-xs text-muted-foreground">이 데이터에는 검증 정의 참조가 없어 계약과 일치하는지 확인할 수 없음</span>}
+                    {e.verifier_ref ? <RawButton refId={e.verifier_ref} title="검사 방법" /> : <span className="text-xs text-muted-foreground">검사 방법 기록이 없어 Task 명세에 정한 검사인지 확인할 수 없습니다.</span>}
                   </TableCell>
                   <TableCell>
-                    <RawButton refId={e.raw_log_ref} title={`${e.evidence_id} 검사 로그`} label="로그" />
+                    <RawButton refId={e.raw_log_ref} title={`${e.evidence_id} 검사 로그`} label="로그 보기" />
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         ) : (
-          <Notice>이 제출 기록에는 자동 검사 증거가 없습니다. 사람 승인 조건만 있습니다.</Notice>
+          <Notice>이 요청에는 사용자 승인 조건만 있고, 자동 검사 결과는 없습니다.</Notice>
         )}
       </Section>
       <Section title={<>변경 내용 <span className="font-mono">{a.submission_id}</span></>}>
@@ -114,7 +114,7 @@ export function PhasePage() {
   }
   return (
     <>
-      <PageHeader title="Phase별 공정" description="Phase는 Task의 속성이며 WBS 계층이 아닙니다. 같은 Workstream의 Task가 여러 Phase에 나뉩니다." />
+      <PageHeader title="작업 단계별 공정" description="Task를 작업 단계(설계·구현·시험 등)별로 모아 보여 줍니다. 작업 구성의 계층과는 따로입니다." />
       <div className="grid auto-cols-[minmax(13rem,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
         {model.project.phases.map((ph: any) => {
           const ts = ids.filter((id) => phaseOf(id) === ph.phase_id)
@@ -154,12 +154,12 @@ export function PhasePage() {
           )
         })}
       </div>
-      <Section title="Phase 묶음 사이의 의존" description="집계 엣지: 하위 Task 의존을 묶은 표시이며 실행 순서를 뜻하지 않음">
+      <Section title="작업 단계 사이의 연결" description="요약 엣지: 하위 Task 사이의 연결을 합친 선. 실행 순서가 아님">
         <ul className="flex flex-col gap-1.5">
           {[...between.values()].map((x) => (
             <li key={`${x.a}>${x.b}`}>
-              {phaseName(x.a)} → {phaseName(x.b)}: 의존 {x.n}개 · 인수 {x.acc}
-              {between.has(`${x.b}>${x.a}`) ? <span className="text-xs text-muted-foreground"> (반대 방향도 있음. 하위 Task 의존을 묶은 것)</span> : null}
+              {phaseName(x.a)} → {phaseName(x.b)}: 연결 {x.n}개 · 검수 {x.acc}
+              {between.has(`${x.b}>${x.a}`) ? <span className="text-xs text-muted-foreground"> (반대 방향 연결도 있음)</span> : null}
             </li>
           ))}
         </ul>
@@ -174,12 +174,12 @@ export function MilestonePage() {
   const done = (it: any) => (it.slot ? model.slotAccepted.has(`${it.task_id}/${it.slot}`) : model.taskAccepted.has(it.task_id))
   return (
     <>
-      <PageHeader title="Milestone별 공정" description="Milestone은 날짜가 아니라 인수되어야 할 항목의 목록입니다." />
+      <PageHeader title="마일스톤별 공정" description="마일스톤은 날짜가 아니라 검수돼야 할 항목의 목록입니다." />
       {[...model.milestones.values()].map((ms: any) => {
         const k = ms.items.filter(done).length
         return (
-          <Section key={ms.milestone_id ?? ms.name} title={ms.name} action={<span className="font-mono text-sm text-strong">{k} / {ms.items.length} 도달</span>}>
-            <Progress value={(k / ms.items.length) * 100} aria-label={`${ms.name} 도달 비율`} />
+          <Section key={ms.milestone_id ?? ms.name} title={ms.name} action={<span className="font-mono text-sm text-strong">{ms.items.length}개 중 {k}개 달성</span>}>
+            <Progress value={(k / ms.items.length) * 100} aria-label={`${ms.name} 달성 비율`} />
             <SubTitle>항목</SubTitle>
             <ul className="flex flex-col gap-2">
               {ms.items.map((it: any, i: number) => {
@@ -190,13 +190,13 @@ export function MilestonePage() {
                   <li key={i} className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge state={ok ? '인수됨' : '남음'} tone={ok ? 'ok' : 'muted'} />
+                        <StatusBadge state={ok ? '인수됨' : '미달성'} tone={ok ? 'ok' : 'muted'} />
                         <Tid id={it.task_id} className="text-xs" />
                         <span className="font-medium text-strong">{nameOf(it.task_id)}</span>
-                        {it.slot ? <span className="text-xs text-muted-foreground">슬롯 <span className="font-mono">{it.slot}</span></span> : null}
+                        {it.slot ? <span className="text-xs text-muted-foreground">결과 항목 <span className="font-mono">{it.slot}</span></span> : null}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {ok ? '도달' : `${c.rep}${w ? ` · ${waitLabel(w)}: ${w.resolve} → ${w.action.actor}: ${w.action.text}` : ''}`}
+                        {ok ? '달성' : `${label(c.rep, true)}${w ? ` · ${waitLabel(w)}: ${w.resolve} → ${w.action.actor}: ${w.action.text}` : ''}`}
                       </p>
                     </div>
                     <Button asChild size="sm" variant="outline">

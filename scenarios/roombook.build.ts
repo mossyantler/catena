@@ -102,7 +102,7 @@ ev('workflow.bound', 'T07', CATENA, 'Graph Design', {
     { node_id: 'review-api', name: 'API 계약 검토', stage: '검증', executor: 'agent', role: 'Reviewer' },
     { node_id: 'impl-conflict', name: '충돌 검사 구현', stage: '구현', executor: 'agent', role: 'Worker' },
     { node_id: 'check-conflict', name: '충돌 테스트', stage: '검증', executor: 'code' },
-    { node_id: 'approve', name: '인수 승인', stage: '승인', executor: 'human', role: '승인자' },
+    { node_id: 'approve', name: '검수 승인', stage: '승인', executor: 'human', role: '승인자' },
   ],
   edges: [
     { from: 'plan', to: 'impl-api', kind: '분기' }, { from: 'plan', to: 'impl-conflict', kind: '분기' },
