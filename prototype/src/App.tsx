@@ -1,13 +1,13 @@
 // 불러오기 순서: 묶음 전체를 끝까지 접어 검사하고, 통과하면 기본 재생 위치로 다시 접어 그린다.
 // 검사에 실패하면 화면을 그리지 않는다(ExecutionEvent 처리 규칙 7).
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 
 import { AppShell } from '@/components/app-shell'
 import { RawViewerProvider } from '@/components/raw-viewer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { BASELINE, DATASET, LoadError, loadBundle, type Bundle } from '@/lib/data'
+import { BASELINE, DATASET, LIVE, LoadError, loadBundle, loadLive, refreshLive, type Bundle } from '@/lib/data'
 import { parseHash, useHash } from '@/lib/route'
 import { CatenaProvider } from '@/lib/store'
 import { BaselinePage } from '@/pages/baseline'
@@ -52,28 +52,50 @@ export default function App() {
   if (new URLSearchParams(location.search).get('review') === 'copy')
     return <Suspense fallback={<main className="p-6">첨삭 화면을 불러오고 있습니다.</main>}><CopyReviewPage /></Suspense>
   // ?data=가 없으면 프로젝트 목록을 연다
-  if (!DATASET)
+  if (!DATASET && !LIVE)
     return (
       <TooltipProvider>
         <ProjectsPage />
       </TooltipProvider>
     )
-  return <Project name={DATASET} />
+  return DATASET ? <Project name={DATASET} /> : <Project name={LIVE!} live />
 }
 
-function Project({ name }: { name: string }) {
+function Project({ name, live = false }: { name: string; live?: boolean }) {
   const [state, setState] = useState<{ bundle?: Bundle; error?: LoadError }>({})
+  const current = useRef<Bundle | undefined>(undefined)
   useEffect(() => {
-    loadBundle(name).then(
-      (bundle) => setState({ bundle }),
+    ;(live ? loadLive : loadBundle)(name).then(
+      (bundle) => {
+        current.current = bundle
+        setState({ bundle })
+      },
       (e) => setState({ error: e instanceof LoadError ? e : new LoadError('불러오기 실패', String(e)) }),
     )
-  }, [name])
+  }, [name, live])
+  // 실시간 저장소: 2초마다 새 이벤트를 받아 같은 검사로 다시 접는다(T30, B-7). 바뀐 것이 있을 때만 다시 그린다
+  useEffect(() => {
+    if (!live) return
+    let busy = false
+    const t = setInterval(() => {
+      const b = current.current
+      if (!b || busy) return
+      busy = true
+      refreshLive(b)
+        .then((next) => {
+          if (next === current.current) return
+          current.current = next
+          setState({ bundle: next })
+        })
+        .finally(() => (busy = false))
+    }, 2000)
+    return () => clearInterval(t)
+  }, [live])
   if (state.error)
     return (
       <main className="mx-auto max-w-2xl p-6">
         <Alert variant="destructive">
-          <AlertTitle>{state.error.kind}: 데이터 묶음을 불러올 수 없습니다.</AlertTitle>
+          <AlertTitle>{state.error.kind}: {live ? 'Project 저장소를' : '데이터 묶음을'} 불러올 수 없습니다.</AlertTitle>
           <AlertDescription>
             <p>{state.error.message}</p>
             <p>{state.error.kind === '검사 실패' ? '기록에 규칙 위반이 있어 현황을 표시하지 않았습니다.' : '데이터를 받지 못했습니다.'}</p>

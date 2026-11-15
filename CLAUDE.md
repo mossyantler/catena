@@ -34,7 +34,7 @@ node tools/plan.ts [--hash <Task ID>]                            # Catena 제작
 tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보기: tailnet 안에서만 https://<기기>.<tailnet>.ts.net:5180 (끄기: --https=5180 off)
 ```
 
-시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험의 공식 측정은 하지 않는다(2026-11-15, 명세 v0.10.8). 사용자가 쓰면서 불편한 점을 말하면 그때 고친다. `docs/user-test.md`와 측정표는 다른 사용자가 생겨 다시 측정할 때를 위해 남긴다.
+시안 주소: `?data=<묶음 이름>`으로 묶음을 고르거나 `?live=<project_id>`로 Project 저장소(`~/.catena/projects/<project_id>`)를 실시간으로 열고(T30, 둘은 함께 쓰지 않는다. 없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`의 묶음과 개발·미리보기 서버가 찾은 저장소), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험의 공식 측정은 하지 않는다(2026-11-15, 명세 v0.10.8). 사용자가 쓰면서 불편한 점을 말하면 그때 고친다. `docs/user-test.md`와 측정표는 다른 사용자가 생겨 다시 측정할 때를 위해 남긴다.
 
 코드를 바꾼 뒤 `npm test`, `npm run check`, `npm run lint`를 실행한다. 화면을 바꿨으면 데스크톱(1440px)과 폰(375px), 밝은 모드와 어두운 모드에서 확인한다. 화면 자체의 자동 시험은 없고, 공정표 배치는 `prototype/src/lib/graph.test.ts`가 시험한다. `.claude/launch.json`의 `prototype`(개발 서버)과 `dist`(빌드 결과) 설정이 미리보기 서버를 띄운다.
 
@@ -84,7 +84,8 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 **화면** (`prototype/`, Vite의 root)
 - 화면은 `prototype/src/lib/rm.ts`를 거쳐 `tools/readmodel.ts`를 직접 불러온다. 생성 파일은 없다.
 - 상태 판단 로직은 넣지 않고 읽기 모델 질의 결과만 그린다. 상태 이름과 색의 대응만 `lib/status.ts`에 있다.
-- 불러오기 순서: 묶음 전체를 끝까지 접어 검사하고, 통과하면 기본 재생 위치로 다시 접는다(`App.tsx`, `lib/data.ts`, `lib/store.tsx`). 검사에 실패하면 화면을 그리지 않는다. 네트워크 오류는 "불러오기 실패", 규칙 위반은 "검사 실패"로 나눠 표시한다.
+- 불러오기 순서: 묶음 전체를 끝까지 접어 검사하고, 통과하면 기본 재생 위치로 다시 접는다(`App.tsx`, `lib/data.ts`, `lib/store.tsx`).
+- 실시간(`?live=`, T30): 개발·미리보기 서버의 `tools/live-api.ts`가 저장소를 읽기 전용으로 열어 묶음과 같은 모양(`live/<id>/dataset.json`, `events.jsonl?after=N`, `artifacts/sha256/<hex>`)으로 내준다. 화면은 2초마다 마지막 seq 뒤의 이벤트만 받아 지금까지 받은 것과 함께 같은 검사로 다시 접는다(`refreshLive`). 재생 위치는 없고 늘 마지막까지 접는다. 새 이벤트가 검사에 실패하면 그 앞까지만 보이고 위쪽 띠에 이유를 보인다(처리 규칙 7). 출처는 `live`만 받는다(E10). 게시본(Artifact)에는 이 API가 없어 목록에 저장소가 나오지 않는다. 검사에 실패하면 화면을 그리지 않는다. 네트워크 오류는 "불러오기 실패", 규칙 위반은 "검사 실패"로 나눠 표시한다.
 - `?data=`가 없으면 프로젝트 목록(`pages/projects.tsx`)을 연다. `data/index.json`의 묶음을 하나씩 불러와 검사하고 출처·검증된 완료 조건과 함께 보인다. 프로젝트 화면의 사이드바 위 "다른 프로젝트"가 목록으로 돌아간다. 다른 프로젝트는 새로 열어 출처를 섞지 않는다(C-11).
 - 화면은 해시 라우팅이다: `#overview`, `#wbs[-id]`, `#dag[-id]`, `#task-<id>`, `#agent-<id>`, `#approval-<id>`, `#phase`, `#milestone`(`lib/route.ts`, 화면은 `pages/`).
 - 묶음 고르기(`?data=`)와 비교 기준 화면(`?mode=baseline`, `pages/baseline.tsx`)은 주소 쿼리로 정한다(`lib/data.ts`). 비교 기준 화면에는 Catena의 해석(대표 상태, 차단 이유, 공정표, 집계, 상태 색)을 넣지 않는다.

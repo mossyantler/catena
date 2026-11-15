@@ -58,18 +58,19 @@ T25-C1의 시험 묶음은 아래 시험 전체다. 모두 `npm test`에 들어 
 ## 사용자 실행 (T25-C2)
 
 ```bash
-sh examples/engine-mvp/setup.sh            # ~/.catena/examples/engine-mvp에 예시 저장소와 저장소 폴더를 만들고 계획을 불러온다
+sh examples/engine-mvp/setup.sh            # 예시 저장소(~/.catena/examples/engine-mvp/repo)와 Project 저장소(~/.catena/projects/engine-mvp-example)를 만들고 계획을 불러온다
 # 안내된 명령으로 차례대로:
-node tools/catena.ts run A --store ~/.catena/examples/engine-mvp/store --base-ref <안내된 commit>   # Claude Code
-node tools/catena.ts run B --store ~/.catena/examples/engine-mvp/store                             # Codex, 승인 대기
-node tools/catena.ts approve B-r1-s1-a1 --store ~/.catena/examples/engine-mvp/store                # 다른 터미널에서
+node tools/catena.ts run A --store ~/.catena/projects/engine-mvp-example --base-ref <안내된 commit>   # Claude Code
+node tools/catena.ts run B --store ~/.catena/projects/engine-mvp-example                             # Codex, 승인 대기
+node tools/catena.ts approve B-r1-s1-a1 --store ~/.catena/projects/engine-mvp-example                # 다른 터미널에서
+# 진행은 대시보드 http://127.0.0.1:5180/?live=engine-mvp-example 에서 실시간으로 본다(T30)
 ```
 
 실행에는 사용자의 Claude 구독과 Codex 계정 사용량이 든다. 결과는 아래에 적는다.
 
 ### 사용자 실행 결과 (2026-11-15)
 
-사용자가 자기 터미널에서 실행했다. 저장소는 `~/.catena/examples/engine-mvp/store`이고, T34(확정된 이벤트 형식 반영) 이후의 코드다.
+사용자가 자기 터미널에서 실행했다. 저장소는 `~/.catena/examples/engine-mvp/store`(T30 뒤로 `~/.catena/projects/engine-mvp-example`이 이 폴더를 가리키는 링크)이고, T34(확정된 이벤트 형식 반영) 이후의 코드다.
 
 | 단계 | 기록 |
 |---|---|

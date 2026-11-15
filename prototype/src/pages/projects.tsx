@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
-import { datasetHref, listProjects, type ProjectEntry } from '@/lib/data'
+import { listProjects, type ProjectEntry } from '@/lib/data'
 import { originLabel } from '@/lib/status'
 
 export function ProjectsPage() {
@@ -44,14 +44,14 @@ export function ProjectsPage() {
 function ProjectCard({ p }: { p: Extract<ProjectEntry, { ok: true }> }) {
   const m = p.manifest
   return (
-    <a href={datasetHref(p.name)} className="block rounded-xl outline-none hover:ring-1 hover:ring-ring focus-visible:ring-2 focus-visible:ring-ring">
+    <a href={p.href} className="block rounded-xl outline-none hover:ring-1 hover:ring-ring focus-visible:ring-2 focus-visible:ring-ring">
       <Card className="h-full">
         <CardHeader>
           <CardTitle>{p.project}</CardTitle>
           <CardDescription>
             <span className="flex flex-wrap items-center gap-2">
-              <Badge variant="wait" title={m.description}>
-                {originLabel(m.origin)} · {m.dataset_id}
+              <Badge variant={m.origin === 'live' ? 'run' : 'wait'} title={m.description}>
+                {originLabel(m.origin)} · {m.dataset_id ?? m.project_id}
               </Badge>
               {m.origin === 'plan' ? <span>실행 기록 없음</span> : null}
             </span>

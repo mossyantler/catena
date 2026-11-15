@@ -308,8 +308,21 @@ function Find() {
 function Origin() {
   const { bundle, pos, setPos, sim } = useCatena()
   const m = bundle.manifest
-  if (!sim) return null
   const last = bundle.events[pos - 1]
+  // 실시간 저장소(T30): 출처와 마지막 기록을 보이고, 갱신이 검사에 실패하면 그 앞까지만 보인다고 알린다(처리 규칙 7)
+  if (m.origin === 'live')
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        <Badge variant="run">
+          {originLabel(m.origin)} · {m.project_id}
+        </Badge>
+        <span>
+          이벤트 {bundle.total}건 · 마지막 기록 {when(last?.occurred_at)} · 새 기록을 2초마다 확인
+        </span>
+        {bundle.live?.error ? <span className="text-fail">{bundle.live.error} (그 앞까지만 보입니다)</span> : null}
+      </div>
+    )
+  if (!sim) return null
   const badge = (
     <Tooltip>
       <TooltipTrigger asChild>

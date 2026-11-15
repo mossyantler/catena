@@ -1,14 +1,22 @@
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+import { createLiveApi } from './tools/live-api.ts'
 
 // 시안은 데이터 묶음(prototype/public/data/<이름> → scenarios/<이름>)을 fetch로 읽는다. 묶음은 ?data=<이름>으로 고른다.
 // base를 './'로 두어 빌드 결과(dist/)를 어느 경로에 올려도(Artifact, 이후 catena ui) 그대로 열린다.
+// 실시간 화면(?live=<project_id>, T30): Project 저장소의 이벤트를 읽기 전용으로 내준다(tools/live-api.ts)
+const live: Plugin = {
+  name: 'catena-live',
+  configureServer: (s) => void s.middlewares.use(createLiveApi()),
+  configurePreviewServer: (s) => void s.middlewares.use(createLiveApi()),
+}
+
 export default defineConfig({
   root: 'prototype',
   base: './',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), live],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, 'prototype/src') },
   },

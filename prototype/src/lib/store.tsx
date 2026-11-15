@@ -28,16 +28,18 @@ export function CatenaProvider({ bundle, children }: { bundle: Bundle; children:
   const [pos, setPos] = useState(() => Math.min(bundle.manifest.default_position ?? bundle.total, bundle.total))
   const [showClosed, setShowClosed] = useState(false)
   const [dagSel, setDagSel] = useState<string | null>(null)
+  // 실시간 저장소는 재생 위치가 없다: 늘 도착한 마지막 이벤트까지 접는다(T30)
+  const at = bundle.manifest.origin === 'live' ? bundle.total : pos
   const model = useMemo(() => {
-    const m = RM.foldAll(bundle.events, refCheckOf(bundle.files), pos)
+    const m = RM.foldAll(bundle.events, refCheckOf(bundle.files), at)
     bundle.accept?.(m) // 계획 파일이면 사람 인수 기록을 더한다(재생 위치 없음, 늘 끝까지 접는다)
     return m
-  }, [bundle, pos])
+  }, [bundle, at])
   const value = useMemo<Catena>(
     () => ({
       bundle,
       model,
-      pos,
+      pos: at,
       setPos,
       showClosed,
       setShowClosed,
@@ -48,7 +50,7 @@ export function CatenaProvider({ bundle, children }: { bundle: Bundle; children:
       nameOf: (id) => model.nodes.get(id)?.name ?? id,
       phaseName: (p) => model.project.phases.find((x: any) => x.phase_id === p)?.name,
     }),
-    [bundle, model, pos, showClosed, dagSel],
+    [bundle, model, at, showClosed, dagSel],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
