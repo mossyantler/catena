@@ -315,5 +315,14 @@
     },
     "approved_at": "2026-11-15",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T32",
+    "contract": "sha256:304318fec815a54f5639c9ddcff0474e77c5938a0884bb0a8537f194015aaf92",
+    "evidence": {
+      "T32-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43686132888 (commit 94ed8ac). engine/serve.test.ts \"T32-C1: serve가 배경에서 Run을 감독하고, 강제 종료되면 임대 만료 뒤 다음 Catena 실행이 정리하며 새 Run으로 다시 시도할 수 있다\""
+    },
+    "approved_at": "2026-11-15",
+    "channel": "CI(auto 조건)"
   }
 ]
