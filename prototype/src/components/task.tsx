@@ -112,11 +112,14 @@ export function TaskNodeContent({ id, tag, extra }: { id: string; tag?: string; 
       </>
     )
   const rework = RM.hasRework(model, id)
+  // 계획이 Task마다 정한 Agent 프로그램(claude-code·codex). 정하지 않은 계획(시나리오, 제작 계획)에는 보이지 않는다
+  const agent: string | undefined = model.contracts.get(id)?.agent
   return (
     <>
       <span className="flex min-w-0 shrink-0 items-center gap-1.5">
         <Tid id={id} />
         <PhaseTag phase={n.phase} />
+        {agent ? <span className="min-w-0 truncate font-mono text-muted-foreground" title="담당 Agent">{agent}</span> : null}
         {rework ? <Repeat2 className="size-3.5 text-muted-foreground" aria-label="수정 반복 있음" /> : null}
         {tag ? <span className="ml-auto shrink-0 font-semibold text-strong">{tag}</span> : null}
       </span>

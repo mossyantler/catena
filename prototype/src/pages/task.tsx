@@ -322,6 +322,7 @@ function TaskDetail({ id }: { id: string }) {
         <KeyValues
           items={[
             ['목표', c.goal],
+            ...(c.agent ? ([['담당 Agent', <span key="agent" className="font-mono">{c.agent}</span>]] as [string, ReactNode][]) : []),
             ['전체 내용', <RawButton key="raw" refId={c.contract_ref} title={`${id} Task 명세 전문`} label="Task 명세 전체 보기" />],
             ['사용량', <span key="cost" className="font-mono">{tokens && !cost ? `토큰 ${tokens.toLocaleString()} (구독 사용량)` : `$${cost.toFixed(2)} (추정값)`}</span>],
           ]}
