@@ -276,5 +276,15 @@
     },
     "approved_at": "2026-11-15",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T25",
+    "contract": "sha256:222e6fe780498efc9690041b9f2690a508b716865dbf87689eeaa11b0beae477",
+    "evidence": {
+      "T25-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43682298064 (commit 9d306ee). engine/mvp.test.ts \"Engine MVP: A(Claude Code) → B(Codex)가 슬롯 게이트, 검사, 승인을 거쳐 검수까지 완주한다(기준 1, 6, 7, 9, 12, 14)\"와 docs/engine-mvp-report.md의 기준별 시험 대응표(기준 1~14)",
+      "T25-C2": "사용자가 자기 터미널에서 run A(Claude Code) → run B(Codex)를 cli-tty로 시작하고 approve(cli-tty)로 승인해 두 Task가 검수되고 Run이 종료됐다(저장소 ~/.catena/examples/engine-mvp/store, 이벤트 54건 E1~E11·형식 버전 1 통과, 결과는 docs/engine-mvp-report.md). 대화에서 \"T25 승인할게\"(2026-11-15)로 승인"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "Claude Code 대화"
   }
 ]
