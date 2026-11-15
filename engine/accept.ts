@@ -28,7 +28,7 @@ HANDLERS['approval.request'] = {
     if (!condition_ids.length) throw new Refusal('규칙 위반', `${task}에는 사용자 확인 조건이 없다. 자동 조건만 있으면 승인 없이 검수한다(7-4)`);
     const n = (s.db.prepare('SELECT COUNT(*) AS n FROM approval_requests').get() as { n: number }).n;
     const approval_id = `${submission_id}-a${n + 1}`;
-    const req = { approval_id, kind: '검수', submission_id, condition_ids };
+    const req = { approval_id, kind: '품질', submission_id, condition_ids };
     s.db.prepare('INSERT INTO approval_requests VALUES (?, ?)').run(approval_id, JSON.stringify(req));
     emit({ type: 'approval.requested', subject: submission_id, issuer: 'Policy', payload: req });
   },

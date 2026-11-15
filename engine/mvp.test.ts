@@ -72,6 +72,10 @@ test('Engine MVP: A(Claude Code) → B(Codex)가 슬롯 게이트, 검사, 승�
   m = foldAll(s.events(), s.refCheck);
   const runtimes = s.events().filter(e => e.type === 'node.started' && e.payload.node_id === 'work').map(e => [e.payload.run_id, e.payload.profile.runtime]);
   assert.deepEqual(runtimes, [['A-r1', 'claude-code'], ['B-r1', 'codex']], '한 공정에서 Task마다 다른 Agent 프로그램');
+  // 확정 형식의 actor 규칙(v0.10.9): node.started의 actor는 노드를 수행한 주체다
+  const performers = s.events().filter(e => e.type === 'node.started').map(e => `${e.payload.run_id}/${e.payload.node_id}:${e.actor.kind}/${e.actor.role}/${e.actor.instance}`);
+  assert.deepEqual(performers, ['A-r1/work:agent/Worker/claude-code', 'A-r1/check:code/검사/catena-runner', 'B-r1/work:agent/Worker/codex', 'B-r1/check:code/검사/catena-runner', 'B-r1/approve:human/승인자/user']);
+  assert.equal(m.approvals.get(approval_id).kind, '품질', '검수 승인의 종류는 품질');
   const workers = s.events().filter(e => e.type === 'agent.activity').map(e => `${e.payload.run_id}:${e.actor.kind}/${e.actor.instance}`);
   assert.deepEqual([...new Set(workers)], ['A-r1:agent/claude-code', 'B-r1:agent/codex'], '활동은 그 Agent 프로그램이 한 일로 기록된다(Agent 그래프에 보인다)');
   const baseB = JSON.parse((s.db.prepare("SELECT payload FROM baselines WHERE baseline_id = 'B-r1-b'").get() as any).payload);

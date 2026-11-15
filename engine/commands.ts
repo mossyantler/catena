@@ -2,6 +2,7 @@
 // {command, principal, channel, args, expected_version?}이다. 명령은 권한(9-1)을 확인하고 트랜잭션 하나에서
 // 상태 테이블과 이벤트를 쓴 뒤, 저장된 이벤트 전체를 읽기 모델로 접어 검사 규칙을 확인한다(규칙의 유일한 출처).
 // 하나라도 어기면 아무것도 남기지 않고 이유(규칙 위반 / 권한 거부 / 버전 충돌 / 대상 없음)를 돌려준다.
+import { formatErrors } from '../tools/eventformat.ts';
 import { createHash } from 'node:crypto';
 import { foldAll, RuleError, type Event, type Model, type Ref } from '../tools/readmodel.ts';
 import { contractTexts, planEvents, planTasks, verifierTexts } from '../tools/planfold.ts';
@@ -195,6 +196,8 @@ export function execute(s: Store, cmd: Command): Outcome {
       const actor = { kind: cmd.principal.kind, instance: cmd.principal.id };
       const events: Event[] = [];
       h.run(s, cmd, prepared, d => events.push(s.append({ ...d, occurred_at: at, actor: d.actor ?? actor })));
+      // 발행하는 이벤트는 확정된 형식 버전 1을 따른다(v0.10.9, T34). 어기면 트랜잭션 전체가 되돌려진다
+      for (const e of events) { const errs = formatErrors(e); if (errs.length) throw new Refusal('규칙 위반', `형식 버전 1: ${e.type} ${errs.join(', ')}`); }
       foldAll(s.events(), s.refCheck); // 규칙을 어기면 RuleError로 트랜잭션 전체가 되돌려진다
       const version = versionOf(s);
       s.db.prepare('INSERT INTO commands VALUES (?, ?, ?, ?, ?, ?, ?)').run(

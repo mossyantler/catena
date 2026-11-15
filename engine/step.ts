@@ -64,7 +64,10 @@ HANDLERS['node.start'] = {
   run: (s, cmd, _p, emit) => {
     const { run_id, node_id, iteration, holder, profile } = cmd.args;
     mustHold(s, run_id, holder);
-    emit({ type: 'node.started', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, profile }, ...(AGENTS.includes(profile?.runtime) ? { actor: agentActor(s, run_id) } : {}) });
+    // node.started의 actor는 그 노드를 수행한 주체다(v0.10.9 actor 규칙): Agent 프로그램, 검사 코드, 사용자
+    const actor = AGENTS.includes(profile?.runtime) ? agentActor(s, run_id) : profile?.runtime === 'catena-runner' ? { kind: 'code' as const, role: '검사', instance: 'catena-runner' }
+      : profile?.runtime === '사용자' ? { kind: 'human' as const, role: '승인자', instance: 'user' } : undefined;
+    emit({ type: 'node.started', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, profile }, ...(actor ? { actor } : {}) });
   },
 };
 
