@@ -296,5 +296,14 @@
     },
     "approved_at": "2026-11-15",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T31",
+    "contract": "sha256:fce63ffae1f2c25bc4501f24c1c625792da7ea169707b003c7e2e94c9235ff78",
+    "evidence": {
+      "T31-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43684820364 (commit 1fd7c91). tools/live-api.test.ts \"T31-C1: 화면 승인과 CLI 승인이 같은 검수 기록과 이벤트를 남긴다(채널만 다르다). 화면 승인은 보인 제출 기록에 묶인다\""
+    },
+    "approved_at": "2026-11-15",
+    "channel": "CI(auto 조건)"
   }
 ]
