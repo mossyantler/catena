@@ -248,5 +248,15 @@
     },
     "approved_at": "2026-11-15",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T23",
+    "contract": "sha256:8b33ba67e5f700058c20156ed6f985671c2d13c929bcc45876a9de6afe6ae184",
+    "evidence": {
+      "T23-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43673166269 (commit 71bf75f). engine/workflow.test.ts \"T23-C1: 검사가 상한(3회)만큼 실패하면 Run이 실패로 끝나고 decision 대기가 생긴다\"",
+      "T23-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43673166269 (commit 71bf75f). engine/workflow.test.ts \"T23-C2: 수정 회차에는 실패한 검사를 알려 주고, 통과하면 검수를 기록하고 Run을 종료한다(대기 → 실행 중 → 종료)\", \"T23-C2: 사용자 확인 조건이 있으면 승인을 기다린다 — 승인하면 검수·종료, 반려하면 실패와 decision 대기, 기다리는 중 취소하면 취소\""
+    },
+    "approved_at": "2026-11-15",
+    "channel": "CI(auto 조건)"
   }
 ]
