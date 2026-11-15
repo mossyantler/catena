@@ -140,7 +140,7 @@ export type StepResult = { result: '성공' | '실패' | '중단'; exit: number 
 /** Agent 노드 하나를 실행한다. 감독 임대를 가진 프로세스(holder)만 부른다. */
 export async function runAgentNode(s: Store, o: {
   run_id: string; node_id: string; iteration: number; holder: Holder;
-  command?: string[]; maxTurns?: number; ttlMs?: number; tickMs?: number;
+  command?: string[]; maxTurns?: number; ttlMs?: number; tickMs?: number; repair?: string;
 }): Promise<StepResult> {
   const run = runRow(s, o.run_id);
   if (!run || run.state !== '실행 중') throw new Error(`실행 중인 Run이 아니다 ${o.run_id}`);
@@ -168,8 +168,8 @@ export async function runAgentNode(s: Store, o: {
   ok(execute(s, { command: 'node.start', principal: SYSTEM, channel: 'runner', args: { run_id: o.run_id, node_id: o.node_id, iteration: o.iteration, holder: o.holder, profile: { runtime, model: model ?? '기본값' } } }), 'node.start');
   // Task마다 고른 Agent 프로그램으로 띄운다(v0.10.7). 활동 기록 형식은 같다
   const h = start(runtime === 'codex'
-    ? prepareCodex({ command: o.command, worktree, tmpDir, prompt: promptOf(contract), model, runId: o.run_id })
-    : prepare({ command: o.command, worktree, tmpDir, prompt: promptOf(contract), runId: o.run_id, permissionMode: settings.permission_mode!, maxTurns: o.maxTurns ?? 30, model, budgetUsd: ticket.reservation?.budget_usd }));
+    ? prepareCodex({ command: o.command, worktree, tmpDir, prompt: promptOf(contract) + (o.repair ? `\n\n${o.repair}` : ''), model, runId: o.run_id })
+    : prepare({ command: o.command, worktree, tmpDir, prompt: promptOf(contract) + (o.repair ? `\n\n${o.repair}` : ''), runId: o.run_id, permissionMode: settings.permission_mode!, maxTurns: o.maxTurns ?? 30, model, budgetUsd: ticket.reservation?.budget_usd }));
   const norm = runtime === 'codex' ? normalizeCodex : normalize;
   recordProcess(s, o.run_id, o.holder, { pgid: h.pgid, started_at: h.started_at });
 

@@ -16,11 +16,13 @@ import { AGENTS, execute, type Reason } from '../engine/commands.ts';
 import { recoverExpired } from '../engine/supervise.ts';
 import '../engine/accept.ts';
 import { askAgent, importAgentPlan, plannerPrompt } from '../engine/goalplan.ts';
+import { runWorkflow } from '../engine/workflow.ts';
+import { me } from '../engine/supervise.ts';
 import { tmpdir } from 'node:os';
 import { createInterface } from 'node:readline/promises';
 
 export const CLI_SCHEMA = 2; // 2: run_attempt·agent_round·repairs, 승인 범위, show의 relations, raw 명령(T27)
-const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더 · plan from-goal "<goal>" [--agent claude-code|codex] [--project-id ID] [--store 폴더]';
+const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더 · plan from-goal "<goal>" [--agent claude-code|codex] [--project-id ID] [--store 폴더] · run <Task> --store 폴더 [--base-ref commit] [--budget USD]';
 const EXIT: Record<Reason, number> = { '규칙 위반': 1, '대상 없음': 3, '권한 거부': 4, '버전 충돌': 5 };
 class CliError extends Error {
   kind: string; code: number;
@@ -226,6 +228,23 @@ async function approve(args: string[], storeDir: string | undefined, json: boole
   } finally { s.close(); }
 }
 
+// run: Task를 시작하고(착수 요청) 워크플로우가 끝날 때까지 이 프로세스가 감독한다(Engine MVP, 6-10). 승인을 기다리는 동안에는
+// 다른 터미널에서 catena approve로 결정한다
+async function runTask(args: string[], storeDir: string | undefined, baseRef: string | undefined, budget: string | undefined) {
+  const [taskId] = args;
+  if (!taskId || !storeDir) throw new CliError('사용법 오류', 2, USAGE);
+  const s = openStore(storeDir);
+  try {
+    recoverExpired(s);
+    const r = execute(s, { command: 'run.start', principal: { kind: 'human', id: 'user' }, channel: process.stdin.isTTY ? 'cli-tty' : 'cli-batch',
+      args: { task_id: taskId, base_ref: baseRef, ...(budget ? { budget_usd: Number(budget) } : {}) } });
+    if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
+    const run_id = r.events.find(e => e.type === 'run.created')!.payload.run_id;
+    console.error(`${run_id} 시작. 끝날 때까지 이 터미널이 감독한다(사용자 승인이 필요하면 다른 터미널에서 catena approve).`);
+    return { run_id, ...(await runWorkflow(s, { run_id, holder: me() })) };
+  } finally { s.close(); }
+}
+
 // plan from-goal: Agent에게 goal을 주어 작업 분해를 계획 파일 형식으로 받고, plan import와 같은 검사를 거쳐 불러온다(T38).
 // Agent가 낸 계획은 저장소 폴더의 goal-plan.json에도 남긴다. 검사를 통과하지 못하면 아무것도 불러오지 않는다.
 async function planFromGoal(args: string[], storeDir: string | undefined, agent: string | undefined, projectId: string | undefined) {
@@ -259,6 +278,8 @@ function main(argv: string[]) {
   const comment = opt('--comment');
   const agentArg = opt('--agent');
   const projectArg = opt('--project-id');
+  const baseRefArg = opt('--base-ref');
+  const budgetArg = opt('--budget');
   const reject = argv.includes('--reject');
   if (reject) argv.splice(argv.indexOf('--reject'), 1);
   const [cmd, ...args] = argv;
@@ -269,6 +290,13 @@ function main(argv: string[]) {
     else console.error(`${err.kind}: ${err.message}`);
     process.exitCode = err.code;
   };
+  if (cmd === 'run') {
+    runTask(args, storeDir, baseRefArg, budgetArg).then(data => {
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'run', source: { origin: 'live', store: storeDir }, data }, null, 2));
+      else console.log(`${data.run_id}: ${data.outcome}${data.reason ? ` (${data.reason})` : ''} · 회차 ${data.iterations}`);
+    }, fail);
+    return;
+  }
   if (cmd === 'plan' && args[0] === 'from-goal') {
     planFromGoal(args, storeDir, agentArg, projectArg).then(data => {
       if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'plan from-goal', source: { origin: 'live', store: data.store }, data }, null, 2));

@@ -20,6 +20,7 @@ if (mode === 'ok') {
   const edits = JSON.parse(process.env.FAKE_CLAUDE_EDITS ?? '{}');
   for (const [p, c] of Object.entries(edits.write ?? {})) { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, c); }
   for (const p of edits.delete ?? []) rmSync(p);
+  if (process.env.FAKE_CLAUDE_FIX_ON_REPAIR && prompt.includes('통과하지 못했다')) writeFileSync('fixed.txt', '고침\n');
   say({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] } });
   say({ type: 'assistant', message: { content: [{ type: 'text', text: '구현을 마쳤고 모든 테스트를 통과했습니다.' }] } });
   say({ type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0.12, usage: { input_tokens: 100, output_tokens: 50 } });
