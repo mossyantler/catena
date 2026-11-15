@@ -15,7 +15,7 @@ Catena는 AI 개발 과정을 사람이 이해할 수 있는 공정(작업 단�
 
 ```bash
 npm run dev                                                      # 시안 보기: http://127.0.0.1:5180 (고치면 바로 반영)
-npm run copy-review                                              # 문구 첨삭: http://127.0.0.1:5182/?review=copy
+npm run copy-review                                              # 문구 첨삭 ?review=copy, 검수표 ?review=accept (포트 5182)
 npm test                                                         # 전체 시험(tools/*.test.ts, engine/*.test.ts, prototype/src/**/*.test.ts)
 npm run check                                                    # 타입 검사(tsc -b, 화면과 Node 코드 둘 다)
 npm run lint                                                     # oxlint + @shadcn/lint 디자인 규칙
@@ -25,12 +25,16 @@ node --test --test-name-pattern="E4" tools/fold.test.ts          # 시험 하나
 node tools/fold.ts scenarios/roombook [--at N]                   # 읽기 모델을 글로 출력(N = 재생 위치)
 node tools/catena.ts status [--bundle 폴더 | --store 폴더] [--at N] [--json]  # CLI 질의(C-12): status·ready·inbox·graph·show·agents·activity·raw <sha256:원문>. JSON schema_version 2
 node tools/catena.ts plan import plan/catena.plan.json [--store 폴더]  # 계획 불러오기(명령 계층). 기본 저장소 ~/.catena/projects/<project_id>
+node tools/catena.ts project configure --store 폴더 [--repo git저장소] [--permission-mode 모드] [--budget USD]  # Project 설정(Agent를 띄울 저장소, Claude Code 권한 모드, 예산 상한)
+node tools/catena.ts run <Task> --store 폴더 [--base-ref commit] [--budget USD]  # Task 시작과 워크플로우 감독(전경, T23). 회차·검사 결과·승인 명령을 알리고, 승인은 다른 터미널에서 approve
+sh examples/engine-mvp/setup.sh [폴더]                            # Engine MVP 검수 시험(T25) 예시: slug 저장소 + 계획(A: Claude Code → B: Codex). 결과는 docs/engine-mvp-report.md
+node tools/catena.ts plan from-goal "<goal>" --agent codex|claude-code [--project-id ID] [--store 폴더]  # Agent에게 goal을 주어 계획을 받아 불러오기(T38)
 node scenarios/roombook.build.ts                                 # 시나리오 묶음 다시 만들기(expense.build.ts도 같다)
 node tools/plan.ts [--hash <Task ID>]                            # Catena 제작 공정: 계획 검사, Task 상태, 착수 가능 Task
 tailscale serve --bg --https=5180 http://127.0.0.1:5180          # 폰에서 보기: tailnet 안에서만 https://<기기>.<tailnet>.ts.net:5180 (끄기: --https=5180 off)
 ```
 
-시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험 진행은 `docs/user-test.md`를 따르고(사용자 1명, 측정표 `docs/user-test-results.csv`), 결과를 받으면 정답·기준 초과·오해 유형 칸을 같은 문서 4·5절과 대조해 채운다.
+시안 주소: `?data=<묶음 이름>`으로 묶음을 고르고(없으면 프로젝트 목록. 목록은 `prototype/public/data/index.json`), `?mode=baseline`이면 사용자 시험의 비교 기준 화면(Task 목록과 실행 로그)을 연다. 예: `http://127.0.0.1:5180/?data=expense#overview`, `http://127.0.0.1:5180/?data=expense&mode=baseline`. 사용자 시험의 공식 측정은 하지 않는다(2026-11-15, 명세 v0.10.8). 사용자가 쓰면서 불편한 점을 말하면 그때 고친다. `docs/user-test.md`와 측정표는 다른 사용자가 생겨 다시 측정할 때를 위해 남긴다.
 
 코드를 바꾼 뒤 `npm test`, `npm run check`, `npm run lint`를 실행한다. 화면을 바꿨으면 데스크톱(1440px)과 폰(375px), 밝은 모드와 어두운 모드에서 확인한다. 화면 자체의 자동 시험은 없고, 공정표 배치는 `prototype/src/lib/graph.test.ts`가 시험한다. `.claude/launch.json`의 `prototype`(개발 서버)과 `dist`(빌드 결과) 설정이 미리보기 서버를 띄운다.
 
@@ -51,7 +55,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
   3. 완료 조건마다 증거를 모은다. `auto` 조건의 증거는 push한 commit에서 GitHub Actions `check`(`.github/workflows/check.yml`: `npm test`, `npm run check`, `npm run lint`, `npm run build`)가 통과한 실행이다. Agent가 자기 세션에서 돌린 검사는 확인용일 뿐 증거가 아니다(0-4).
   4. 인수는 조건의 종류로 정한다(2026-11-13 사용자 결정). Agent는 자기 보고로 인수하지 않는다.
      - **조건이 모두 `auto`인 Task:** 작업을 커밋·push하고 그 commit의 CI가 통과하면, 실행 URL과 commit을 증거로 `accepted.json`에 적는다(`channel: "CI(auto 조건)"`). 사용자에게 묻지 않고 결과만 알린다. 사용자는 Milestone 병합 때 PR로 한꺼번에 검토한다.
-     - **`human` 조건이 하나라도 있는 Task:** 사용자에게 그 조건의 산출물과 증거를 보이고, 승인한 때만 적는다.
+     - **`human` 조건이 하나라도 있는 Task:** 사용자에게 그 조건의 산출물과 증거를 보이고, 승인한 때만 적는다. 사용자는 대화에서 승인하거나 검수표(`https://<기기>.<tailnet>.ts.net:5182/?review=accept`, T36)에 결정을 남긴다. 검수표의 결정은 `~/.catena/reviews/acceptance.json`에 있고, 승인이면 그 결정(시각·메모)을 증거로 `channel: "검수표"`로 적는다. 사용자 시험 측정표도 검수표에서 채운다.
      - CI가 실패하면 인수하지 않고 고친다.
   5. 커밋과 push(2026-11-12 사용자 결정). 작업을 커밋·push해 CI를 돌리고, 인수 기록은 CI가 통과한 뒤(human 조건이 있으면 사용자 승인까지 받은 뒤) 다음 커밋으로 넣는다. `auto` 조건이 하나도 없는 Task는 작업과 인수 기록을 한 커밋에 넣어도 된다.
   6. PR은 Task마다 새로 열지 않는다. 열려 있는 PR 하나에 인수된 커밋을 계속 쌓고, Milestone에 도달하면 병합을 제안한다. 병합은 사용자가 한다(2026-11-13 사용자 결정). 열린 PR이 없으면 그때 하나 연다.
@@ -97,6 +101,14 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 - `supervise.ts`: 감독 임대(6-10)와 감독 상실 복구(6-9). `beginRun`(명령 `run.begin`: Run을 실행 중으로 바꾸고 임대를 얻음), `recordProcess`(프로세스 그룹과 시작 시각), `renewLease`, `recoverExpired`(만료된 임대를 트랜잭션 안에서 넘겨받아 프로세스 그룹 종료 → 명령 `run.lost`: Ticket 취소, 예약 정산, Run 실패(감독 상실)). 프로세스 ID 재사용은 시작 시각(`ps -o lstart=`)으로 가린다. CLI는 저장소를 열 때마다 `recoverExpired`를 부른다.
 - `runner.ts`: Claude Code Runner(Runner 명세 R-4, R-6, R-7). `prepare`가 `claude -p --output-format stream-json …`을 사용자 설정·환경 그대로(Run 전용 TMPDIR만 바꿔) 만들고, `start`가 새 프로세스 그룹으로 띄운다. `normalize`는 stream-json 한 줄을 이벤트 초안으로 바꾼다. 도구 호출과 메시지는 `Agent 보고`이고 증거가 아니다(0-4).
 - `submit.ts`: 제출 기록(6-8). 임시 index로 worktree를 base_ref와 비교해(수정·삭제·미추적, ignore 제외) write_scope를 확인하고, 통과하면 `commit-tree`로 제출 commit을 만들어 `refs/catena/submissions/<id>`에 남긴다. Agent의 worktree는 바꾸지 않는다. 거부면 commit하지 않고, `step.ts`가 Run을 `실패(쓰기 범위)`로 닫고 decision 대기 사유를 낸다(`run.fail`).
+- `accept.ts`: 승인과 검수(7-5, 9-10). 명령 `approval.request`(사용자 확인 조건을 결과에 대해 묻기), `approval.decide`(사람·대화형 CLI `cli-tty`에서만, 결정에 채널과 14-15 한계 문구를 남김), `acceptance.record`(같은 제출 기록의 통과한 근거와 승인으로 결과 항목·Task 검수, Baseline·근거·승인·commit을 함께 기록). CLI는 `catena approve <승인 요청 ID> [--reject --comment 이유] --store 폴더`이고, 터미널에서 확인 입력을 받는다. Runner는 Agent 환경에 `CATENA_RUN_ID`를 넣어 그 안에서 부른 승인을 Runner 채널로 거부한다.
+- `budget.ts`: 예산과 사용 한도(5-1, 5-6, 5-7). 프로젝트 예산 상한(`project.configure`의 `budget_usd`)이 있으면 `run.start`가 남은 예산(상한 - API 사용액 - 정산 전 예약)을 넘는 예약을 거부한다. `stopIfExhausted`는 단계 경계에서 Run의 예약 소진·예산 소진·구독 사용 한도 신호(`rate_limit_event` rejected)를 보고 Run을 `일시 중단`으로 멈추고 자원 대기 사유를 낸다(명령 `run.pause`, 재개는 확장이라 취소 뒤 새 Run). 사용량은 과금 방식(`billing`: API·구독, Runner init의 `apiKeySource`로 판단)과 함께 기록하고, 구독 사용량은 금액 합계에 넣지 않는다.
+- `verify.ts`: Agent 결과 검사(A-6). `runCheckNode`가 검사 노드를 열고 `collectEvidence`로 결과 commit을 새 git worktree(`<저장소 폴더>/checks/<근거 ID>`)에 꺼내 Task 명세의 `verify.command`를 실행한 뒤, 로그·환경·결과를 검수 근거로 남기고(명령 `evidence.record`) checkout을 지운다. 검사 방법이 없는 auto 조건은 `미실행`이다.
+- `workflow.ts`: 워크플로우 템플릿 실행(T23, 6-2, 6-3, 6-5). `runWorkflow`가 Run을 시작하고 구현(work) → 자동 검사(check)를 돌며, 실패하면 실패한 검사를 알려 주고 같은 worktree에서 수정 회차를 돈다(상한 3회). 상한에 닿으면 Run을 `실패`로 닫고 decision 대기를 낸다. 통과하면 사용자 확인 조건이 있을 때만 승인 노드를 열고 결정을 기다리며(그동안 임대 연장·취소 확인), 검수를 기록하고 Run을 `종료`로 닫는다(명령 `run.finish`). CLI `catena run`이 이것을 전경에서 감독한다.
+- 이벤트 형식 버전 1(명세 v0.10.9)은 `tools/eventformat.ts`(`FORMAT_V1`, `formatErrors`)에 있다. 명령 계층은 발행하는 이벤트를 이것으로 확인하고, 어기면 `규칙 위반`으로 아무것도 남기지 않는다. actor 규칙: 노드 시작의 actor는 수행 주체(Agent 노드 `agent / Worker / claude-code`·`codex`, 검사 노드 `code / 검사`, 승인 노드 `human / 승인자`)이고 Agent 활동·transcript도 그 Agent다. 나머지 Engine 이벤트의 actor는 명령 주체(`system / orchestrator`, 사용자)다. 검수 승인의 종류는 `품질`이다.
+- `mvp.test.ts`: Engine MVP 검수 시험 묶음(T25-C1). A(Claude Code) → B(Codex)를 가짜 CLI로 끝까지 돌려 13장 검수 기준 1, 6, 7, 9, 12, 14를 확인한다. 기준별 시험 대응표와 실제 CLI 실행 결과는 `docs/engine-mvp-report.md`에 있다.
+- `goalplan.ts`: Agent 계획을 공정으로(T38). `askAgent`가 Agent를 계획만 내게 띄우고(Claude Code `--permission-mode plan`, Codex `-s read-only`) 마지막 응답을 받으며, `importAgentPlan`이 응답에서 계획 JSON을 꺼내 `plan.import`와 같은 검사로 불러온다. 어기면 아무것도 남기지 않는다. 원문은 저장소 폴더의 `goal-plan.json`에 남는다.
+- `codex.ts`: Codex 실행기(T37, 14-14). `prepareCodex`가 `codex exec --json --ephemeral -C <worktree> -s workspace-write -`를 만들고, `normalizeCodex`가 JSONL(끝난 명령 실행·파일 변경·메시지, 턴 끝 토큰)을 Claude Code와 같은 활동 기록 초안으로 바꾼다. 계획 파일 Task의 `agent`(claude-code / codex)가 Ticket의 `profile.runtime`이 되고, `step.ts`가 그것으로 실행기를 고른다. 시험은 `fixtures/fake-codex.mjs`를 쓴다.
 - `step.ts`: Agent 노드 하나 실행. 명령 `project.configure`(권한 모드, 저장소), `run.cancel`(대기면 바로 취소, 실행 중이면 취소 요청), `node.start`·`node.events`·`node.finish`·`run.cancelled`. `runAgentNode`가 Run 전용 worktree(`<저장소 폴더>/worktrees/<run_id>`, Baseline의 base_ref)를 만들고 Runner를 띄워, 주기마다 활동을 기록하고 임대를 연장하고 취소 요청을 확인한다. 끝나면 transcript를 원문으로 저장하고(시스템 기록) 사용량(추정값)과 노드 끝을 남긴다. 시험은 `fixtures/fake-claude.mjs`(같은 stream-json을 내는 가짜 CLI)를 쓴다.
 
 **시나리오 생성기** (`scenarios/roombook.build.ts`, `scenarios/expense.build.ts`, 공용 도구 `scenarios/sim.ts`)
@@ -107,12 +119,12 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 **시험과 시나리오는 맞물려 있다**
 - `fold.test.ts`는 roombook의 특정 상태(예: T07 `실행 중`, T03 `decision` 대기)를 단정한다.
 - 거부 시험은 묶음을 임시 폴더에 복사해 이벤트를 고친 뒤 실행한다.
-- 재생성 시험은 두 생성기를 그 자리에서 다시 실행해 `events.jsonl` 해시가 그대로인지 본다. 생성기를 고쳤다면 먼저 생성기를 실행해 묶음을 다시 만든 뒤 시험을 돌린다.
+- 재생성 시험은 두 생성기를 임시 폴더(`CATENA_SCENARIO_OUT`)에 다시 실행해 `events.jsonl` 해시가 묶음과 같은지 본다. 제자리에 다시 쓰면 같은 묶음을 읽는 다른 시험과 겹쳐 가끔 실패했다. 생성기를 고쳤다면 먼저 생성기를 실행해 묶음을 다시 만든 뒤 시험을 돌린다.
 - 구조 시험은 ID 대응표(`TO_ROOMBOOK`)로 expense를 roombook ID로 바꿔, 두 묶음의 공정 구조(카드, 차단 이유, 엣지, 집계, 수정 반복, Agent Graph)가 같은지 본다.
 
 ## 명세 문서
 
-- **최신은 `core_spec_v0.10.4.md`다(상태: 제안).** v0.10.4는 계획 파일 Task에 `write_scope`(선택)를 더하고, 제출 commit은 Catena가 worktree 내용으로 만들어 `refs/catena/submissions/<id>`로 남긴다고 6-8을 바로잡았다. v0.10.3은 Product MVP 사용자 시험을 사용자 1명이 진행하도록 바꿨다(2026-11-13 사용자 결정: 처음 보는 참가자를 구할 수 없다. 처음 보는 사람의 이해는 확인하지 못하는 한계를 명세에 적었다). v0.10.2는 v0.10.1에서 인수 승인(human 노드)을 human 조건이 있는 Task에만 두도록 바꿨다(조건이 모두 auto면 통과 증거만으로 인수, 읽기 모델 E7과 내장 Template도 같이). v0.10.1은 v0.10에 계획 파일 형식, 출처 값 `plan`, 명령 기록, 저장소 드라이버(`node:sqlite`)와 위치를 더했다. v0.10은 v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
+- **최신은 `core_spec_v0.10.9.md`다(상태: 제안).** v0.10.9는 ExecutionEvent 형식 버전 1을 확정했다(T07): Engine이 더한 선택 필드를 유형 표에 넣고, actor 규칙(`node.started`·`agent.activity`의 actor는 수행 주체)과 값·화면 이름의 분리를 정했으며, 검수 승인 종류는 `품질`이다(Engine 반영은 T34). v0.10.8은 사용자 시험의 공식 측정을 그만두고 사용자가 쓰면서 확인·그때 고치기로 바꿨다(2026-11-15). v0.10.7은 목적(여러 Agent를 섞어 쓸 때의 공정 확인·관리와 시각화)을 다시 밝히고, Engine MVP Runner를 2종(Claude Code, Codex, 계획 파일 Task의 `agent`로 고름)으로 했으며, Agent의 goal에서 계획을 만드는 기능과 실시간 화면을 앞당겼다. v0.10.6은 14-15를 결정했다: 같은 사용자 권한의 Agent가 승인 채널을 흉내 내는 것은 막지 않고 한계로 기록·표시한다(2026-11-14 사용자 결정). v0.10.5는 계획 파일의 auto 조건에 검사 방법 `verify: {command, files?}`를 더해 검증 정의를 Task 명세에 고정했다(검수할 때 `verifier_ref` 대조, 검사 파일은 쓰기 범위 밖). v0.10.4는 계획 파일 Task에 `write_scope`(선택)를 더하고, 제출 commit은 Catena가 worktree 내용으로 만들어 `refs/catena/submissions/<id>`로 남긴다고 6-8을 바로잡았다. v0.10.3은 Product MVP 사용자 시험을 사용자 1명이 진행하도록 바꿨다(2026-11-13 사용자 결정: 처음 보는 참가자를 구할 수 없다. 처음 보는 사람의 이해는 확인하지 못하는 한계를 명세에 적었다). v0.10.2는 v0.10.1에서 인수 승인(human 노드)을 human 조건이 있는 Task에만 두도록 바꿨다(조건이 모두 auto면 통과 증거만으로 인수, 읽기 모델 E7과 내장 Template도 같이). v0.10.1은 v0.10에 계획 파일 형식, 출처 값 `plan`, 명령 기록, 저장소 드라이버(`node:sqlite`)와 위치를 더했다. v0.10은 v0.9.2에서 Catena가 시작한 실행에 대한 실행 통제 약속(Hard Invariant 강제, A-4 시험, 샌드박스, 도구 호출마다의 Ticket 검사)을 폐지했다(2026-11-12 사용자 결정: 공정 프로그램이지 막는 프로그램이 아니다). 공정의 사실(시스템 증거, 제출 기록, 사람 인수, 승인의 버전 결합)은 9-8의 공정 규칙으로 남는다. v0.9.2는 v0.9.1에서 묶음 안 집계 엣지 표시(규칙 2·3), 14-10 결정(Product MVP는 시뮬레이션만), 사용자 시험의 두 번째 시나리오와 비교 기준 화면을 반영했다. v0.9.1은 v0.9에서 화면 구현 방식(14-11)만 바꿨다. 이전 버전 파일은 이력으로 남겨 두고 고치지 않는다. 개정할 때는 새 버전 파일을 만들고, "vX 대비 변경" 절과 부록 변경 대조표를 둔다.
 - `runner_spec_v0.4.md`: Runner 연결부(Agent 띄우기, stream-json 정규화, 프로세스 그룹, 인증 정책)와 Engine MVP Claude Code Runner 구성. 규칙 자체를 바꾸려면 core spec을 고친다. `runner_security_spec_v0.1~0.3`은 이력이다.
 - `dashboard_interaction_design.md`: 대시보드에서 할 수 있는 조작의 설계 초안(T29). 객체·상태별 조작, 설계 규칙 I1~I13, 열린 질문, 비교 도구 조사. 인수되면 다음 명세 개정에 반영한다.
 - `orchestration_architecture_review.md`: v0.9의 기술 조사(Beads, Gas Town, Gas City, Herdr, LangGraph, ADK, MAF, Coding Agent CLI, MCP·ACP·A2A)와 아키텍처 결정 근거, Spike 목록.
@@ -129,6 +141,7 @@ Catena 자신의 개발도 Catena 공정(WBS, Task 계약, 슬롯 의존, 완료
 
 ## 설계 판단 기준 (명세 「제품 정의」, 0-7)
 
+- **목적(2026-11-14 사용자):** Claude Code, Codex 같은 Agent 프로그램을 여러 개 섞어 쓰며 goal 같은 명령을 그래프 엔지니어링 명령처럼 쓸 때 없는 **구조적 공정 확인·관리와 공정 시각화**를 채운다. Agent의 권한, 계정(구독·API 키) 사용, 인증·보안은 목적이 아니다. 그런 주제는 필요한 최소만 두고 화면과 계획의 중심에 올리지 않는다.
 - **가치 우선순위:** Visibility 50%, Orchestration 25%, Control 25%. 이 비중은 UX와 개발 우선순위를 정하는 기준이다. 두 설계가 부딪히면 사용자가 진행 상황을 더 쉽게 이해하는 쪽을 고른다. 기술적으로 정교해진다는 이유만으로 기능이나 Core를 늘리지 않는다. Catena는 Agent의 행위를 막는 보안 도구가 아니다(0-5). 대신 공식 상태가 사실과 어긋나지 않게 하는 공정 규칙(9-8)은 승인으로도 넘지 않는다.
 - **MVP 순서:** Product(시뮬레이션 데이터로 화면 검증, 14-10) → Engine → Integrated → 확장.
 - **시간은 예측하지 않는다.** 예상 소요, 계획 일정, 계획 대비 지연은 제안하지 않는다. 진척은 시간이 아니라 인수된 완료 조건으로 표현한다.

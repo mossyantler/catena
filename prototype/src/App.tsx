@@ -18,6 +18,7 @@ import { ProjectsPage } from '@/pages/projects'
 import { TaskPage } from '@/pages/task'
 
 const CopyReviewPage = lazy(() => import('@/pages/copy-review'))
+const AcceptancePage = lazy(() => import('@/pages/acceptance'))
 
 function Screen() {
   const hash = useHash()
@@ -46,6 +47,8 @@ function Screen() {
 }
 
 export default function App() {
+  if (new URLSearchParams(location.search).get('review') === 'accept')
+    return <Suspense fallback={<main className="p-6">검수표를 불러오고 있습니다.</main>}><AcceptancePage /></Suspense>
   if (new URLSearchParams(location.search).get('review') === 'copy')
     return <Suspense fallback={<main className="p-6">첨삭 화면을 불러오고 있습니다.</main>}><CopyReviewPage /></Suspense>
   // ?data=가 없으면 프로젝트 목록을 연다
@@ -70,10 +73,10 @@ function Project({ name }: { name: string }) {
     return (
       <main className="mx-auto max-w-2xl p-6">
         <Alert variant="destructive">
-          <AlertTitle>{state.error.kind}: 데이터 묶음을 불러오지 않았습니다.</AlertTitle>
+          <AlertTitle>{state.error.kind}: 데이터 묶음을 불러올 수 없습니다.</AlertTitle>
           <AlertDescription>
             <p>{state.error.message}</p>
-            <p>묶음은 전부 불러오거나 전부 거부합니다(ExecutionEvent 처리 규칙 7).</p>
+            <p>{state.error.kind === '검사 실패' ? '기록에 규칙 위반이 있어 현황을 표시하지 않았습니다.' : '데이터를 받지 못했습니다.'}</p>
           </AlertDescription>
         </Alert>
       </main>

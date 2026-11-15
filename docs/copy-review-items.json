@@ -2314,5 +2314,37 @@
     "original": "완료 조건 3/8 인수 · 착수 가능 2",
     "suggested": "완료 조건 3/8 검수 · 시작 가능 2",
     "context": "요약 노드 카드. 숫자는 예시"
+  },
+  {
+    "id": "copy-314",
+    "category": "작업 상세",
+    "original": "수행",
+    "suggested": "담당",
+    "context": "Task 상세 실행 기록 표의 열 머리. 그 노드를 실행한 Agent·사용자",
+    "basis": "2026-11-14 대화 결정: Task 상세 표 열 이름 모두 바꾸기(실행 기록 표 '수행'→'담당')"
+  },
+  {
+    "id": "copy-315",
+    "category": "작업 상세",
+    "original": "승인 A02 열기",
+    "suggested": "승인 요청 A02 열기",
+    "context": "Task 상세에서 승인 화면으로 가는 버튼. ID는 예시",
+    "basis": "2026-11-14 대화 결정: Task 상세 버튼 이름 모두 바꾸기"
+  },
+  {
+    "id": "copy-316",
+    "category": "승인·실행 흐름",
+    "original": "단계 종류: 계획 · 구현 · 검증 · 승인 (Project Phase와 다름)",
+    "suggested": "단계 종류: 계획 · 구현 · 검사 · 승인 (프로젝트의 작업 단계와 다름)",
+    "context": "Agent 그래프 범례. 노드와 Task 상세의 단계 배지도 '검증'을 '검사'로 표시(lib/status.ts stageLabel)",
+    "basis": "2026-11-13 대화 결정 적용: 검증→검사(copy-021: 자동 실행은 검사), Phase→작업 단계(copy-010). 화면 반영 2026-11-14"
+  },
+  {
+    "id": "copy-317",
+    "category": "승인·실행 흐름",
+    "original": "사람",
+    "suggested": "사용자",
+    "context": "Agent 그래프 노드의 실행 주체(human) 표시(lib/status.ts EXECUTOR)",
+    "basis": "2026-11-14 대화 결정: '사람'이 든 문구는 '사용자'로(사람 승인→사용자 승인, copy-058)"
   }
 ]

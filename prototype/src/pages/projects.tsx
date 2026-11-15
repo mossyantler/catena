@@ -25,7 +25,7 @@ export function ProjectsPage() {
       />
       {list instanceof Error ? (
         <Alert variant="destructive">
-          <AlertTitle>프로젝트 목록을 불러오지 않았습니다.</AlertTitle>
+          <AlertTitle>프로젝트 목록을 불러올 수 없습니다.</AlertTitle>
           <AlertDescription>{list.message}</AlertDescription>
         </Alert>
       ) : !list ? (
@@ -60,7 +60,7 @@ function ProjectCard({ p }: { p: Extract<ProjectEntry, { ok: true }> }) {
         <CardContent className="flex flex-col gap-3">
           <CountsBar counts={new Map(p.counts)} />
           <p className="text-sm text-muted-foreground">
-            검증된 완료 조건 <span className="font-mono text-foreground">{p.accepted} / {p.total}</span>
+            검수된 완료 조건 <span className="font-mono text-foreground">{p.accepted} / {p.total}</span>
           </p>
           {m.description ? <p className="line-clamp-3 text-xs text-muted-foreground">{m.description}</p> : null}
         </CardContent>

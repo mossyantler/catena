@@ -55,8 +55,20 @@ export type EventDraft = Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'or
 export function openStore(dir: string) {
   mkdirSync(join(dir, 'artifacts', 'sha256'), { recursive: true });
   const db = new DatabaseSync(join(dir, 'catena.db'));
-  // 잠금 대기 시간을 가장 먼저 둔다. 여러 프로세스가 동시에 열 때 journal_mode 변경이 대기 없이 SQLITE_BUSY로 실패하지 않게 한다
-  db.exec('PRAGMA busy_timeout = 10000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+  // 잠금 대기 시간을 가장 먼저 둔다. 여러 프로세스가 동시에 열 때 뒤의 문장이 대기 없이 SQLITE_BUSY로 실패하지 않게 한다
+  db.exec('PRAGMA busy_timeout = 10000');
+  // 새 파일을 처음 WAL로 바꿀 때는 읽기 잠금을 쓰기 잠금으로 올린다. 다른 프로세스가 먼저 바꾸는 중이면 SQLite는 교착을 피하려고
+  // busy_timeout을 기다리지 않고 바로 SQLITE_BUSY를 낸다(sqlite3_busy_handler 문서). 문장을 다시 실행하면 바뀐 결과를 읽고 끝난다
+  for (const until = Date.now() + 10_000; ;) {
+    try {
+      db.exec('PRAGMA journal_mode = WAL');
+      break;
+    } catch (err) {
+      if ((err as { errcode?: number }).errcode !== 5 || Date.now() > until) throw err;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1); // 1ms 쉬고 다시
+    }
+  }
+  db.exec('PRAGMA foreign_keys = ON');
   const ver = (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
   if (ver > SCHEMA_VERSION) throw new Error(`저장소 형식 ${ver}은 이 Catena(${SCHEMA_VERSION})보다 새롭다`);
   db.exec(`BEGIN IMMEDIATE; ${SCHEMA} PRAGMA user_version = ${SCHEMA_VERSION}; COMMIT;`);

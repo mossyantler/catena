@@ -48,7 +48,8 @@ test('C1: 여러 프로세스가 같은 저장소에 동시에 써도 seq가 1�
 });
 
 test('여러 프로세스가 새 저장소를 동시에 열어도 잠금 때문에 실패하지 않는다', async () => {
-  // 회귀 시험: busy_timeout보다 journal_mode를 먼저 두면, 동시에 연 프로세스 하나가 기다리지 않고 SQLITE_BUSY로 죽었다(2026-11-13 발견)
+  // 회귀 시험: busy_timeout보다 journal_mode를 먼저 두면, 동시에 연 프로세스 하나가 기다리지 않고 SQLITE_BUSY로 죽었다(2026-11-13 발견).
+  // busy_timeout을 먼저 둬도 새 파일의 첫 WAL 전환이 겹치면 SQLite가 기다리지 않고 SQLITE_BUSY를 내서 가끔 죽었다(2026-11-15 발견)
   const dir = fresh();
   const store = new URL('./store.ts', import.meta.url).pathname;
   const codes = await Promise.all(Array.from({ length: 8 }, (_, w) => new Promise<number | null>(done => {

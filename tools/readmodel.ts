@@ -158,6 +158,7 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
         need(!ids.has(c.condition_id), 'E4', `조건 ID 중복 ${c.condition_id}`); ids.add(c.condition_id);
         need(!c.slot || outs.has(c.slot), 'E4', `조건 ${c.condition_id}의 슬롯 ${c.slot}이 계약에 없다`);
         need(['auto', 'review', 'human'].includes(c.method), 'E4', `검증 방법 오류 ${c.method}`);
+        if (c.verifier_ref) ref(c.verifier_ref);
       }
       m.contracts.set(p.task_id, p);
       n.lifecycle = '활성';
@@ -300,7 +301,7 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
         target = s.task;
       }
       m.approvals.set(p.approval_id, { ...p, task: target, requested: e.occurred_at });
-      openWait({ id: `approval:${p.approval_id}`, type: 'approval', issuer: e.issuer, target, resolve: `승인 ${p.approval_id} 결정`,
+      openWait({ id: `approval:${p.approval_id}`, type: 'approval', issuer: e.issuer, target, resolve: `승인 요청 ${p.approval_id} 결정`,
         action: { actor: '사용자', text: p.submission_id ? `제출 기록 ${p.submission_id} 승인 또는 반려` : `${p.kind} 승인 또는 반려`, screen: '승인 화면' },
         raised_at: e.occurred_at, derived: true, source: p.approval_id });
       break;
@@ -315,6 +316,8 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
       a.decision = p.decision;
       a.comment = p.comment;
       a.decided = e.occurred_at;
+      a.channel = p.channel; // 승인을 받은 채널과 그 한계(9-10, 14-15)
+      a.channel_note = p.channel_note;
       m.waits.get(`approval:${p.approval_id}`)!.open = false;
       break;
     }
@@ -333,7 +336,11 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
       const ev = p.evidence_ids.map((id: string) => m.evidence.get(id));
       need(ev.every((x: any) => x && x.submission_id === p.submission_id && x.result === '통과'), 'E7', '증거가 같은 제출 기록의 통과 결과가 아니다');
       for (const cd of conds) {
-        if (cd.method === 'auto') need(ev.some((x: any) => x.condition_id === cd.condition_id), 'E7', `자동 조건 ${cd.condition_id}의 증거 없음`);
+        if (cd.method === 'auto') {
+          need(ev.some((x: any) => x.condition_id === cd.condition_id), 'E7', `자동 조건 ${cd.condition_id}의 증거 없음`);
+          // 검증 정의가 계약에 고정돼 있으면 같은 검증 정의로 실행한 증거만 근거가 된다(7-3, 7-7)
+          if (cd.verifier_ref) need(ev.some((x: any) => x.condition_id === cd.condition_id && x.verifier_ref?.id === cd.verifier_ref.id), 'E7', `자동 조건 ${cd.condition_id}의 검증 정의가 계약과 다르다`);
+        }
         else need(a.condition_ids.includes(cd.condition_id), 'E7', `사람 조건 ${cd.condition_id}이 승인 범위에 없음`);
       }
       const scoped = (slot?: string) => c.conditions.filter((x: any) => x.required && (x.slot ?? null) === (slot ?? null)).map((x: any) => x.condition_id);
@@ -373,7 +380,7 @@ export function apply(m: Model, e: Event, refCheck: (r: Ref) => string | undefin
     case 'usage.recorded': {
       const r = runOf(p.run_id);
       need(typeof p.cost_usd === 'number' && ['보고값', '추정값', '알 수 없음'].includes(p.reliability), 'E2', '사용량 형식 오류');
-      m.usage.push({ task: r.task, run: r.id, node: p.node_id, cost: p.cost_usd, reliability: p.reliability });
+      m.usage.push({ task: r.task, run: r.id, node: p.node_id, cost: p.cost_usd, reliability: p.reliability, billing: p.billing, tokens: p.tokens });
       break;
     }
 
@@ -416,12 +423,12 @@ export function waitsOf(m: Model, taskId: string): Wait[] {
     for (const s of m.contracts.get(taskId).input_slots.filter((x: any) => x.required)) {
       const d = m.deps.find(x => x.to.task_id === taskId && x.to.slot === s.name);
       if (!d) {
-        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${s.name} 슬롯의 공급 Task 연결`,
-          action: { actor: '사용자', text: `${s.name} 슬롯을 공급할 Task 연결`, screen: 'Task 상세' }, raised_at: '', open: true, derived: true });
+        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${s.name} 입력의 선행 Task 연결`,
+          action: { actor: '사용자', text: `${s.name} 입력을 보낼 선행 Task 연결`, screen: 'Task 상세' }, raised_at: '', open: true, derived: true });
       } else if (!d.from.external_ref && !m.slotAccepted.has(`${d.from.task_id}/${d.from.slot}`)) {
         const src = m.nodes.get(d.from.task_id).name;
-        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${src}의 ${d.from.slot} 슬롯 인수`,
-          action: { actor: '시스템', text: `선행 Task "${src}" 진행`, screen: '선행 Task' }, raised_at: d.at, open: true, derived: true, source: d.from.task_id });
+        ws.push({ id: `dep:${taskId}/${s.name}`, type: 'dependency', issuer: 'Planning', target: taskId, resolve: `${src}의 ${d.from.slot} 결과 검수`,
+          action: { actor: '시스템', text: `선행 Task ${src}의 검수를 기다림`, screen: '선행 Task' }, raised_at: d.at, open: true, derived: true, source: d.from.task_id });
       }
     }
   }

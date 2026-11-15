@@ -2,9 +2,10 @@
 // {command, principal, channel, args, expected_version?}이다. 명령은 권한(9-1)을 확인하고 트랜잭션 하나에서
 // 상태 테이블과 이벤트를 쓴 뒤, 저장된 이벤트 전체를 읽기 모델로 접어 검사 규칙을 확인한다(규칙의 유일한 출처).
 // 하나라도 어기면 아무것도 남기지 않고 이유(규칙 위반 / 권한 거부 / 버전 충돌 / 대상 없음)를 돌려준다.
+import { formatErrors } from '../tools/eventformat.ts';
 import { createHash } from 'node:crypto';
 import { foldAll, RuleError, type Event, type Model, type Ref } from '../tools/readmodel.ts';
-import { contractTexts, planEvents, planTasks } from '../tools/planfold.ts';
+import { contractTexts, planEvents, planTasks, verifierTexts } from '../tools/planfold.ts';
 import type { Store } from './store.ts';
 
 export type Principal = { kind: 'human' | 'agent' | 'system'; id: string };
@@ -24,7 +25,7 @@ export class Refusal extends Error {
 export type Handler = {
   principals: Principal['kind'][];         // 이 명령을 낼 수 있는 주체(9-1: Agent는 질의와 요청만 한다)
   prepare?: (s: Store, cmd: Command) => any; // 트랜잭션 전에 할 일(산출물 파일 쓰기, 14-3 쓰기 순서)
-  run: (s: Store, cmd: Command, prepared: any, emit: (d: Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'origin' | 'dataset_id' | 'occurred_at' | 'actor'>) => void) => void;
+  run: (s: Store, cmd: Command, prepared: any, emit: (d: Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'origin' | 'dataset_id' | 'occurred_at' | 'actor'> & { actor?: Event['actor'] }) => void) => void;
 };
 
 const sha = (t: string) => createHash('sha256').update(t).digest('hex');
@@ -34,7 +35,7 @@ const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 // 정의는 내용 해시 산출물로 두고 workflow_ref로 가리킨다(3-5: 공개된 정의는 바꾸지 않고 새 버전을 만든다).
 const WORK = { node_id: 'work', name: '작성·구현', stage: '구현', executor: 'agent', role: 'Worker' };
 const CHECK = { node_id: 'check', name: '자동 검사', stage: '검증', executor: 'code' };
-const APPROVE = { node_id: 'approve', name: '인수 승인', stage: '승인', executor: 'human', role: '승인자' };
+const APPROVE = { node_id: 'approve', name: '검수 승인', stage: '승인', executor: 'human', role: '승인자' };
 const LOOP = [{ from: 'work', to: 'check', kind: '순차' }, { from: 'check', to: 'work', kind: '반복' }];
 export const TEMPLATES = {
   approve: { template_id: 'impl-check-fix-approve', version: 1, repair_limit: 3, nodes: [WORK, CHECK, APPROVE], edges: [...LOOP, { from: 'check', to: 'approve', kind: '순차' }] },
@@ -56,6 +57,9 @@ function suppliedCommits(s: Store, m: Model, taskId: string) {
   return { bindings, commits: [...commits] };
 }
 
+/** Engine이 띄울 수 있는 Agent 프로그램(Runner, 14-2, 14-14). */
+export const AGENTS = ['claude-code', 'codex'];
+
 // 계획 파일의 모양만 확인한다. 의존·순환·슬롯 같은 공정 규칙은 읽기 모델이 확인한다(E2~E4, E11).
 function checkPlanShape(plan: any) {
   const no = (msg: string) => { throw new Refusal('규칙 위반', `계획 파일 형식: ${msg}`); };
@@ -66,9 +70,30 @@ function checkPlanShape(plan: any) {
     if (typeof t.id !== 'string' || typeof t.name !== 'string' || typeof t.goal !== 'string') no(`Task에 id·name·goal이 필요하다 (${t.id ?? '?'})`);
     if (!t.outputs || typeof t.outputs !== 'object' || !Array.isArray(t.conditions)) no(`${t.id}: outputs 객체와 conditions 배열이 필요하다`);
     for (const src of Object.values<any>(t.inputs ?? {})) if (typeof src !== 'string' || !/^[^.]+\.[^.]+$/.test(src)) no(`${t.id}: 입력 공급은 "Task.슬롯" 형식이다 (${src})`);
+    if (t.agent !== undefined && !AGENTS.includes(t.agent)) no(`${t.id}: agent는 ${AGENTS.join(' · ')} 가운데 하나다 (${t.agent})`);
     if (t.write_scope !== undefined && (!Array.isArray(t.write_scope) || !t.write_scope.length || !t.write_scope.every((p: any) => typeof p === 'string' && p)))
       no(`${t.id}: write_scope는 경로 패턴(glob) 문자열의 배열이다`);
+    for (const c of t.conditions) if (c.verify !== undefined) {
+      const v = c.verify;
+      if (c.method !== 'auto') no(`${c.id}: 검사 방법(verify)은 auto 조건에만 적는다`);
+      if (!v || typeof v.command !== 'string' || !v.command.trim() || (v.files !== undefined && (!Array.isArray(v.files) || !v.files.every((f: any) => typeof f === 'string' && f))))
+        no(`${c.id}: verify는 {command: 실행할 명령, files?: 보호할 검사 파일 경로[]}이다`);
+    }
   }
+}
+
+/** API 과금 사용액. 구독 사용량은 실제 청구액이 아니므로 뺀다(5-7). run_id를 주면 그 Run만. */
+export const spentUsd = (s: Store, run_id?: string) => s.events()
+  .filter(e => e.type === 'usage.recorded' && e.payload.billing !== '구독' && (!run_id || e.payload.run_id === run_id))
+  .reduce((n, e) => n + (Number(e.payload.cost_usd) || 0), 0);
+
+/** 남은 프로젝트 예산: 상한 - 사용액 - 아직 정산되지 않은 예약의 남은 몫(5-3). 상한이 없으면 null. */
+export function budgetLeft(s: Store): number | null {
+  const cap = JSON.parse((s.db.prepare('SELECT payload FROM projects').get() as { payload: string } | undefined)?.payload ?? '{}').settings?.budget_usd;
+  if (typeof cap !== 'number') return null;
+  const open = (s.db.prepare("SELECT run_id, payload FROM tickets WHERE status = '유효'").all() as { run_id: string; payload: string }[])
+    .reduce((n, t) => n + Math.max((JSON.parse(t.payload).reservation?.budget_usd ?? 0) - spentUsd(s, t.run_id), 0), 0);
+  return cap - spentUsd(s) - open;
 }
 
 /** 명령 이름 → 처리기. 감독(supervise.ts)처럼 다른 모듈도 여기에 명령을 더한다. */
@@ -86,6 +111,12 @@ export const HANDLERS: Record<string, Handler> = {
       const contract = m.contracts.get(a.task_id);
       if (!contract) throw new Refusal('규칙 위반', `E2: 계약이 확정되지 않은 Task ${a.task_id}`);
       if ([...m.runs.values()].some((r: any) => r.task === a.task_id && OPEN_RUN.includes(r.state))) throw new Refusal('규칙 위반', `${a.task_id}에 끝나지 않은 Run이 있다. Task마다 끝나지 않은 Run은 하나뿐이다(6-1)`);
+      // 예산 상한이 있으면 예약이 남은 예산 안이어야 한다. 넘으면 신규 착수를 막는다(5-3, 5-6)
+      const left = budgetLeft(s);
+      if (left !== null) {
+        if (typeof a.budget_usd !== 'number' || !(a.budget_usd > 0)) throw new Refusal('규칙 위반', '예산 상한이 있는 프로젝트에서는 Run마다 예약액(budget_usd)을 정한다(5-3)');
+        if (a.budget_usd > left + 1e-9) throw new Refusal('규칙 위반', `예산 상한: 남은 예산 $${left.toFixed(2)}보다 큰 예약 $${a.budget_usd.toFixed(2)}은 시작할 수 없다(5-6)`);
+      }
       const kind = contract.conditions.some((c: any) => c.method !== 'auto') ? 'approve' : 'auto';
       const templateRef = refs[kind];
       if (!m.workflows.has(a.task_id)) emit({ type: 'workflow.bound', subject: a.task_id, issuer: 'Graph Design', payload: { task_id: a.task_id, workflow_ref: templateRef, nodes: TEMPLATES[kind].nodes, edges: TEMPLATES[kind].edges } });
@@ -93,6 +124,8 @@ export const HANDLERS: Record<string, Handler> = {
       const attempt = [...m.runs.values()].filter((r: any) => r.task === a.task_id).length + 1;
       const run_id = `${a.task_id}-r${attempt}`;
       const { bindings, commits } = suppliedCommits(s, m, a.task_id);
+      const missing = bindings.filter(b => !b.submission_id).map(b => b.from);
+      if (missing.length) throw new Refusal('규칙 위반', `E6: 입력 항목이 아직 검수되지 않았다(${missing.join(', ')}). 선행 Task를 먼저 검수한다(1-4)`);
       if (commits.length > 1) throw new Refusal('규칙 위반', `입력 공급 commit이 둘 이상이다(병합은 확장, 3-4): ${commits.join(', ')}`);
       const base_ref = commits[0] ?? a.base_ref;
       if (typeof base_ref !== 'string' || !base_ref) throw new Refusal('규칙 위반', 'base_ref가 없다: 입력이 없는 Task는 프로젝트 기준 commit을 넘긴다(1-1)');
@@ -105,7 +138,7 @@ export const HANDLERS: Record<string, Handler> = {
         ticket_id: `${run_id}-t`, run_id, baseline_id: baseline.baseline_id, principal: cmd.principal,
         allowed: { write_scope: contract.write_scope ?? null, permission_mode: a.permission_mode ?? null },
         policy_decision: { principal: cmd.principal, channel: cmd.channel, result: '허가' }, approvals: [],
-        profile: { runner_ref: a.runner_ref ?? null, model: a.model ?? null, effort: a.effort ?? null },
+        profile: { runtime: contract.agent ?? 'claude-code', runner_ref: a.runner_ref ?? null, model: a.model ?? null, effort: a.effort ?? null },
         reservation: { budget_usd: a.budget_usd ?? null, slots: 1, write_lock: contract.write_scope ?? null },
         expires_at: new Date(now.getTime() + 24 * 3600_000).toISOString(), status: '유효',
       };
@@ -125,7 +158,7 @@ export const HANDLERS: Record<string, Handler> = {
     principals: ['human'],
     prepare: (s, cmd) => {
       checkPlanShape(cmd.args?.plan);
-      for (const text of contractTexts(cmd.args.plan).values()) s.putArtifact(text);
+      for (const text of [...contractTexts(cmd.args.plan).values(), ...verifierTexts(cmd.args.plan)]) s.putArtifact(text);
     },
     run: (s, cmd, _p, emit) => {
       const plan = cmd.args.plan;
@@ -162,7 +195,9 @@ export function execute(s: Store, cmd: Command): Outcome {
       const at = new Date().toISOString();
       const actor = { kind: cmd.principal.kind, instance: cmd.principal.id };
       const events: Event[] = [];
-      h.run(s, cmd, prepared, d => events.push(s.append({ ...d, occurred_at: at, actor })));
+      h.run(s, cmd, prepared, d => events.push(s.append({ ...d, occurred_at: at, actor: d.actor ?? actor })));
+      // 발행하는 이벤트는 확정된 형식 버전 1을 따른다(v0.10.9, T34). 어기면 트랜잭션 전체가 되돌려진다
+      for (const e of events) { const errs = formatErrors(e); if (errs.length) throw new Refusal('규칙 위반', `형식 버전 1: ${e.type} ${errs.join(', ')}`); }
       foldAll(s.events(), s.refCheck); // 규칙을 어기면 RuleError로 트랜잭션 전체가 되돌려진다
       const version = versionOf(s);
       s.db.prepare('INSERT INTO commands VALUES (?, ?, ?, ?, ?, ?, ?)').run(

@@ -57,20 +57,19 @@
         },
         {
           "id": "T06", "name": "사용자 시험 진행", "phase": "P3",
-          "goal": "명세 v0.10.3과 docs/user-test.md를 사용자 1명 진행으로 고치고(2026-11-13 사용자 결정), 사용자가 Catena 화면과 비교 기준으로 Q1~Q6, Q8 과제를 풀어 측정표를 채운다",
+          "goal": "사용자가 대시보드를 직접 써 보고 지금 상태를 확인한다. 14과제 측정은 하지 않고, 쓰면서 불편한 점은 그때 고친다(2026-11-15 사용자 결정, 명세 v0.10.8)",
           "inputs": { "test_kit": "T05.test_kit" },
-          "outputs": { "results": "측정표" },
+          "outputs": { "results": "확인 기록" },
           "conditions": [
-            { "id": "T06-C1", "method": "human", "slot": "results", "text": "명세 v0.10.3의 1인 진행 방식을 승인하고, 두 블록 14과제의 답, 이동 수, 막힌 지점이 docs/user-test-results.csv에 기록됐다" }
+            { "id": "T06-C1", "method": "human", "slot": "results", "text": "사용자가 대시보드를 직접 써 보고 지금 상태를 승인한다" }
           ]
         },
         {
-          "id": "T07", "name": "사용자 시험 결과 반영", "phase": "P1",
-          "goal": "통과 조건을 판정하고, 오해가 나온 화면 요소와 이동이 많았던 과제를 고친다. ExecutionEvent 형식을 확정한다(13장)",
+          "id": "T07", "name": "이벤트 형식 확정", "phase": "P1",
+          "goal": "Product MVP에서 쓴 ExecutionEvent 형식을 확정한다(13장). 사용자 시험 통과 판정은 하지 않는다(2026-11-15 사용자 결정: 쓰면서 확인)",
           "inputs": { "results": "T06.results" },
-          "outputs": { "verdict": "판정 기록", "event_schema": "명세" },
+          "outputs": { "event_schema": "명세" },
           "conditions": [
-            { "id": "T07-C1", "method": "human", "slot": "verdict", "text": "통과 조건(Catena 화면으로 모든 과제 정답, 기준 경로 초과 과제와 막힌 지점마다 고칠지 결정) 판정 승인(인수 기준 10, v0.10.3)" },
             { "id": "T07-C2", "method": "human", "slot": "event_schema", "text": "ExecutionEvent 형식 확정을 담은 명세 개정 승인" }
           ]
         },
@@ -124,6 +123,16 @@
           "conditions": [
             { "id": "T35-C1", "method": "auto", "slot": "copy_review", "text": "CI의 시험·타입 검사·lint·빌드 통과. 항목별 저장·재조회·잘못된 입력 거부·동시 수정 충돌 거부를 시험한다" },
             { "id": "T35-C2", "method": "human", "slot": "copy_review", "text": "사용자가 Tailscale HTTPS에서 항목별 첨삭, 원문 유지·보류, 저장 후 이어보기, 명세용 내보내기를 확인한다" }
+          ]
+        },
+        {
+          "id": "T36", "name": "검수표 화면 구현", "phase": "P2",
+          "goal": "사용자가 어느 기기에서든 Tailscale HTTPS로 사람 확인 조건이 남은 Task를 보고 승인·반려·보류와 메모를 남기며, 사용자 시험 측정표를 채울 수 있게 한다(2026-11-14 사용자 요청). 결정은 저장소 밖 파일에 남기고, 검수 기록(plan/accepted.json)은 Claude가 그 결정을 근거로 적는다. 자동으로 검수하지 않는다",
+          "inputs": { "ui": "T04.ui" },
+          "outputs": { "review_sheet": "코드" },
+          "conditions": [
+            { "id": "T36-C1", "method": "auto", "slot": "review_sheet", "text": "CI의 시험·타입 검사·lint·빌드 통과. 검수할 Task 고르기, 결정 저장·재조회·잘못된 입력 거부·동시 수정 충돌 거부, 측정표 저장이 다른 열을 보존하는지 시험한다" },
+            { "id": "T36-C2", "method": "human", "slot": "review_sheet", "text": "사용자가 다른 기기에서 Tailscale HTTPS로 검수표를 열어 결정을 남기고 측정표를 채울 수 있음을 확인한다" }
           ]
         }
       ]
@@ -227,6 +236,16 @@
               "conditions": [
                 { "id": "T24-C1", "method": "auto", "slot": "budget", "text": "예산 상한에 닿으면 새 호출이 거부되고 Run이 다음 단계 경계에서 멈춘다(Engine 인수 기준 5)" }
               ]
+            },
+            {
+              "id": "T37", "name": "Codex 실행기 구현", "phase": "P2",
+              "goal": "Claude Code와 같은 방식으로 Codex CLI(codex exec --json)를 Run 전용 worktree에서 띄우고, JSONL 출력을 활동 기록으로 바꾼다. 계획 파일 Task의 agent(claude-code / codex)로 Task마다 Agent 프로그램을 골라, 한 공정에서 여러 Agent를 섞어 쓴다(2026-11-14 사용자 결정: 여러 Agent를 섞어 쓸 때의 공정 확인이 목적)",
+              "inputs": { "lease": "T17.lease", "runner": "T19.runner" },
+              "outputs": { "codex_runner": "코드" },
+              "conditions": [
+                { "id": "T37-C1", "method": "auto", "slot": "codex_runner", "text": "Codex로 띄운 Run도 노드 시작·활동·끝 이벤트, 원문, Agent 결과 기록이 남고 읽기 모델 검사 규칙을 통과한다" },
+                { "id": "T37-C2", "method": "auto", "slot": "codex_runner", "text": "한 계획에서 Task마다 Claude Code와 Codex를 골라 실행하고, 어느 Agent 프로그램이 했는지 노드 기록에 남는다" }
+              ]
             }
           ]
         },
@@ -277,13 +296,23 @@
           ]
         },
         {
+          "id": "T38", "name": "Agent 계획을 공정으로 불러오기 구현", "phase": "P2",
+          "goal": "Claude Code나 Codex에 goal을 주어 작업 분해(계획)를 받고, 그것을 Catena 계획 파일 형식(Task·입력·결과 항목·완료 조건·agent)으로 바꿔 불러와 공정표로 보이게 한다. Agent가 낸 계획도 계획 파일과 같은 검사를 거친다(2026-11-14 사용자 결정)",
+          "inputs": { "commands": "T14.commands", "runner": "T19.runner" },
+          "outputs": { "goal_plan": "코드" },
+          "conditions": [
+            { "id": "T38-C1", "method": "auto", "slot": "goal_plan", "text": "Agent가 낸 계획이 계획 파일 형식과 읽기 모델 검사를 통과할 때만 불러오고, 어기면 아무것도 남기지 않으며 이유를 보인다" },
+            { "id": "T38-C2", "method": "human", "slot": "goal_plan", "text": "사용자가 실제 Agent에 goal을 주어 만든 공정을 대시보드에서 확인한다" }
+          ]
+        },
+        {
           "id": "T25", "name": "Engine MVP 검수 시험", "phase": "P3",
-          "goal": "슬롯으로 연결된 Task 두 개(A → B)를 실제 Claude Code로 완주하고 Engine MVP 인수 기준(v0.10)을 확인한다",
-          "inputs": { "orchestrator": "T23.orchestrator", "budget": "T24.budget" },
+          "goal": "슬롯으로 연결된 Task 두 개(A → B)를 A는 Claude Code, B는 Codex로 실제로 완주하고 Engine MVP 검수 기준(v0.10)을 확인한다. 한 공정에서 다른 Agent 프로그램을 섞어 쓰는 경우를 시험한다",
+          "inputs": { "orchestrator": "T23.orchestrator", "budget": "T24.budget", "codex": "T37.codex_runner" },
           "outputs": { "engine_report": "시험 결과" },
           "conditions": [
             { "id": "T25-C1", "method": "auto", "slot": "engine_report", "text": "Engine MVP 인수 기준(v0.10) 시험 묶음이 통과한다(발행한 이벤트의 E1~E11 검사 포함)" },
-            { "id": "T25-C2", "method": "human", "slot": "engine_report", "text": "사용자가 CLI로 A → B를 착수하고 승인해 완주를 확인한다" }
+            { "id": "T25-C2", "method": "human", "slot": "engine_report", "text": "사용자가 CLI로 A(Claude Code) → B(Codex)를 시작하고 승인해 완주를 확인한다" }
           ]
         }
       ]
@@ -304,7 +333,7 @@
         {
           "id": "T30", "name": "대시보드 실시간 갱신 구현", "phase": "P2",
           "goal": "Engine의 이벤트를 도착하는 대로 접어 화면을 갱신한다. 화면 구조와 읽기 모델은 바꾸지 않고 데이터 출처만 바뀐다(B-7)",
-          "inputs": { "engine_report": "T25.engine_report", "ui": "T04.ui", "schema_update": "T34.schema_update" },
+          "inputs": { "engine_report": "T25.engine_report", "ui": "T04.ui" },
           "outputs": { "live_ui": "코드" },
           "conditions": [
             { "id": "T30-C1", "method": "auto", "slot": "live_ui", "text": "live 데이터와 묶음 데이터가 섞이지 않는다(Integrated 인수 기준 3)" },

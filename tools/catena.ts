@@ -7,16 +7,23 @@
 // 종료 코드: 0 성공, 1 규칙 위반, 2 사용법 오류, 3 대상 없음, 4 권한 거부, 5 버전 충돌
 // --json: { schema_version, command, source: { origin, dataset_id, position, total }, data | error: { kind, message } }
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { foldBundle } from './fold.ts';
 import * as RM from './readmodel.ts';
 import { defaultStoreDir, openStore } from '../engine/store.ts';
-import { execute, type Reason } from '../engine/commands.ts';
+import { AGENTS, execute, type Reason } from '../engine/commands.ts';
 import { recoverExpired } from '../engine/supervise.ts';
+import '../engine/accept.ts';
+import { askAgent, importAgentPlan, plannerPrompt } from '../engine/goalplan.ts';
+import { runWorkflow } from '../engine/workflow.ts';
+import { projectSettings } from '../engine/step.ts';
+import { me } from '../engine/supervise.ts';
+import { tmpdir } from 'node:os';
+import { createInterface } from 'node:readline/promises';
 
 export const CLI_SCHEMA = 2; // 2: run_attempt·agent_round·repairs, 승인 범위, show의 relations, raw 명령(T27)
-const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더]';
+const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더 · plan from-goal "<goal>" [--agent claude-code|codex] [--project-id ID] [--store 폴더] · project configure --store 폴더 [--repo git저장소] [--permission-mode 모드] [--budget USD] · run <Task> --store 폴더 [--base-ref commit] [--budget USD]';
 const EXIT: Record<Reason, number> = { '규칙 위반': 1, '대상 없음': 3, '권한 거부': 4, '버전 충돌': 5 };
 class CliError extends Error {
   kind: string; code: number;
@@ -200,6 +207,82 @@ function planImport(args: string[], storeDir: string | undefined, json: boolean)
   } finally { s.close(); }
 }
 
+// project configure: Agent를 띄울 git 저장소(1-1), Claude Code 권한 모드(R-3 7), 프로젝트 예산 상한(5-1)을 정한다
+function configure(storeDir: string | undefined, repo: string | undefined, mode: string | undefined, budget: string | undefined, json: boolean) {
+  if (!storeDir || (!repo && !mode && budget === undefined)) throw new CliError('사용법 오류', 2, USAGE);
+  if (repo && !existsSync(join(repo, '.git'))) throw new CliError('사용법 오류', 2, `git 저장소가 아니다: ${repo}`);
+  if (budget !== undefined && !(Number(budget) >= 0)) throw new CliError('사용법 오류', 2, `--budget은 0 이상의 금액(USD)이다: ${budget}`);
+  const s = openStore(storeDir);
+  try {
+    const r = execute(s, { command: 'project.configure', principal: { kind: 'human', id: 'user' }, channel: process.stdin.isTTY && !json ? 'cli-tty' : 'cli-batch',
+      args: { ...(repo ? { repo: resolve(repo) } : {}), ...(mode ? { permission_mode: mode } : {}), ...(budget !== undefined ? { budget_usd: Number(budget) } : {}) } });
+    if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
+    return { store: storeDir, settings: projectSettings(s), version: r.version };
+  } finally { s.close(); }
+}
+
+// approve: 승인·반려는 대화형 터미널에서 확인 입력을 받아야 한다(9-10). 파이프·--json·Runner 안(CATENA_RUN_ID)에서 부르면
+// 그 채널 그대로 명령에 넘겨 명령 계층이 거부한다. 같은 사용자 권한의 Agent가 터미널을 흉내 내는 것은 막지 않는다(14-15)
+async function approve(args: string[], storeDir: string | undefined, json: boolean, reject: boolean, comment: string | undefined) {
+  const [id] = args;
+  if (!id || !storeDir) throw new CliError('사용법 오류', 2, USAGE);
+  const channel = process.env.CATENA_RUN_ID ? 'runner' : process.stdin.isTTY && process.stdout.isTTY && !json ? 'cli-tty' : 'cli-batch';
+  const decision = reject ? '반려' : '승인';
+  if (channel === 'cli-tty') {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    // Ctrl+C·Ctrl+D로 그만두면 질문이 거부된다. 오류 대신 아무것도 하지 않았다고 알린다
+    const answer = await rl.question(`승인 요청 ${id}을(를) ${decision}합니다. 계속하려면 '${decision}'을 입력하세요: `).catch(() => '').finally(() => rl.close());
+    if (answer.trim() !== decision) throw new CliError('사용법 오류', 2, '확인 입력이 달라 아무것도 하지 않았다');
+  }
+  const s = openStore(storeDir);
+  try {
+    recoverExpired(s);
+    const r = execute(s, { command: 'approval.decide', principal: { kind: 'human', id: 'user' }, channel, args: { approval_id: id, decision, comment } });
+    if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
+    return { approval_id: id, decision, channel, version: r.version };
+  } finally { s.close(); }
+}
+
+// run: Task를 시작하고(착수 요청) 워크플로우가 끝날 때까지 이 프로세스가 감독한다(Engine MVP, 6-10). 승인을 기다리는 동안에는
+// 다른 터미널에서 catena approve로 결정한다
+async function runTask(args: string[], storeDir: string | undefined, baseRef: string | undefined, budget: string | undefined) {
+  const [taskId] = args;
+  if (!taskId || !storeDir) throw new CliError('사용법 오류', 2, USAGE);
+  const s = openStore(storeDir);
+  try {
+    recoverExpired(s);
+    const r = execute(s, { command: 'run.start', principal: { kind: 'human', id: 'user' }, channel: process.stdin.isTTY ? 'cli-tty' : 'cli-batch',
+      args: { task_id: taskId, base_ref: baseRef, ...(budget ? { budget_usd: Number(budget) } : {}) } });
+    if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
+    const run_id = r.events.find(e => e.type === 'run.created')!.payload.run_id;
+    console.error(`${run_id} 시작. 끝날 때까지 이 터미널이 감독한다(사용자 승인이 필요하면 다른 터미널에서 catena approve).`);
+    return { run_id, ...(await runWorkflow(s, { run_id, holder: me(), log: msg => console.error(msg) })) };
+  } finally { s.close(); }
+}
+
+// plan from-goal: Agent에게 goal을 주어 작업 분해를 계획 파일 형식으로 받고, plan import와 같은 검사를 거쳐 불러온다(T38).
+// Agent가 낸 계획은 저장소 폴더의 goal-plan.json에도 남긴다. 검사를 통과하지 못하면 아무것도 불러오지 않는다.
+async function planFromGoal(args: string[], storeDir: string | undefined, agent: string | undefined, projectId: string | undefined) {
+  const goal = args[1];
+  const a = agent ?? 'claude-code';
+  const id = projectId ?? 'goal-plan';
+  if (!goal || !AGENTS.includes(a) || !/^[A-Za-z0-9._-]+$/.test(id)) throw new CliError('사용법 오류', 2, USAGE);
+  const dir = storeDir ?? defaultStoreDir(id);
+  // 시험용: CATENA_AGENT_COMMAND(JSON 배열)로 Agent 실행 파일을 바꿔 끼운다
+  const command = process.env.CATENA_AGENT_COMMAND ? JSON.parse(process.env.CATENA_AGENT_COMMAND) : undefined;
+  let text: string;
+  try { text = await askAgent({ agent: a, prompt: plannerPrompt(goal, id), cwd: process.cwd(), tmpDir: tmpdir(), command }); }
+  catch (err) { throw new CliError('대상 없음', 3, `Agent에게서 계획을 받지 못했다: ${(err as Error).message}`); }
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'goal-plan.json'), text);
+  const s = openStore(dir);
+  try {
+    const r = importAgentPlan(s, text);
+    if (!r.ok) throw new CliError(r.reason === '형식 오류' ? '규칙 위반' : r.reason, r.reason === '형식 오류' ? 1 : EXIT[r.reason], `Agent가 낸 계획을 불러오지 않았다: ${r.message} (원문: ${join(dir, 'goal-plan.json')})`);
+    return { agent: a, project: r.plan.project.name, tasks: r.plan.wbs.length, store: dir, version: r.version };
+  } finally { s.close(); }
+}
+
 function main(argv: string[]) {
   const opt = (name: string) => { const i = argv.indexOf(name); if (i < 0) return undefined; const v = argv[i + 1]; argv.splice(i, 2); return v; };
   const json = argv.includes('--json');
@@ -207,9 +290,51 @@ function main(argv: string[]) {
   const bundle = opt('--bundle') ?? join(import.meta.dirname, '..', 'scenarios', 'roombook');
   const storeDir = opt('--store');
   const atArg = opt('--at');
+  const comment = opt('--comment');
+  const agentArg = opt('--agent');
+  const projectArg = opt('--project-id');
+  const baseRefArg = opt('--base-ref');
+  const budgetArg = opt('--budget');
+  const repoArg = opt('--repo');
+  const modeArg = opt('--permission-mode');
+  const reject = argv.includes('--reject');
+  if (reject) argv.splice(argv.indexOf('--reject'), 1);
   const [cmd, ...args] = argv;
   let source: any = null;
+  const fail = (err: unknown) => {
+    if (!(err instanceof CliError)) throw err;
+    if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: cmd ?? null, source, error: { kind: err.kind, message: err.message } }, null, 2));
+    else console.error(`${err.kind}: ${err.message}`);
+    process.exitCode = err.code;
+  };
+  if (cmd === 'run') {
+    runTask(args, storeDir, baseRefArg, budgetArg).then(data => {
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'run', source: { origin: 'live', store: storeDir }, data }, null, 2));
+      else console.log(`${data.run_id}: ${data.outcome}${data.reason ? ` (${data.reason})` : ''} · 회차 ${data.iterations}`);
+    }, fail);
+    return;
+  }
+  if (cmd === 'plan' && args[0] === 'from-goal') {
+    planFromGoal(args, storeDir, agentArg, projectArg).then(data => {
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'plan from-goal', source: { origin: 'live', store: data.store }, data }, null, 2));
+      else console.log(`${data.agent}가 낸 계획을 불러왔다: ${data.project} · 항목 ${data.tasks}개 · 저장소 ${data.store} (버전 ${data.version})`);
+    }, fail);
+    return;
+  }
+  if (cmd === 'approve') {
+    approve(args, storeDir, json, reject, comment).then(data => {
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'approve', source: { origin: 'live', store: storeDir }, data }, null, 2));
+      else console.log(`승인 요청 ${data.approval_id}: ${data.decision} (채널 ${data.channel}, 버전 ${data.version}). 같은 사용자 권한의 Agent도 이 채널을 흉내 낼 수 있다(14-15)`);
+    }, fail);
+    return;
+  }
   try {
+    if (cmd === 'project' && args[0] === 'configure') {
+      const data = configure(storeDir, repoArg, modeArg, budgetArg, json);
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'project configure', source: { origin: 'live', store: storeDir }, data }, null, 2));
+      else console.log(`Project 설정: 저장소 ${data.settings.repo ?? '-'} · 권한 모드 ${data.settings.permission_mode ?? '-'} · 예산 상한 ${data.settings.budget_usd ?? '-'} (버전 ${data.version})`);
+      return;
+    }
     if (cmd === 'plan') {
       const data = planImport(args, storeDir, json);
       if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'plan import', source: { origin: 'live', store: data.store }, data }, null, 2));
@@ -229,10 +354,7 @@ function main(argv: string[]) {
     else if (cmd === 'raw') process.stdout.write(data.text);
     else console.log(`[${source.origin}] ${source.dataset_id ?? storeDir} · 재생 위치 ${source.position} / ${source.total}\n${text(cmd, data)}`);
   } catch (err) {
-    if (!(err instanceof CliError)) throw err;
-    if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: cmd ?? null, source, error: { kind: err.kind, message: err.message } }, null, 2));
-    else console.error(`${err.kind}: ${err.message}`);
-    process.exitCode = err.code;
+    fail(err);
   }
 }
 

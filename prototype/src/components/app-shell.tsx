@@ -37,10 +37,10 @@ import { useCatena } from '@/lib/store'
 
 const NAV = [
   { view: 'overview', label: '개요', icon: LayoutDashboard },
-  { view: 'wbs', label: 'WBS 공정표', icon: GanttChart },
-  { view: 'dag', label: '전체 의존', icon: Network },
-  { view: 'phase', label: 'Phase', icon: Columns3 },
-  { view: 'milestone', label: 'Milestone', icon: Flag },
+  { view: 'wbs', label: '공정표', icon: GanttChart },
+  { view: 'dag', label: '작업 네트워크', icon: Network },
+  { view: 'phase', label: '작업 단계', icon: Columns3 },
+  { view: 'milestone', label: '마일스톤', icon: Flag },
 ] as const
 
 /** 지금 화면이 가리키는 WBS 노드(트리에서 강조). */
@@ -84,7 +84,7 @@ function WbsTree({ route }: { route: Route }) {
         {ns.map((n) => (
           <SidebarMenuSubItem key={n.id}>
             <SidebarMenuSubButton asChild isActive={sel === n.id}>
-              <a href={href(n)}>{label(n)}</a>
+              <a href={href(n)} title={n.name}>{label(n)}</a>
             </SidebarMenuSubButton>
             {n.kind === 'summary' ? sub(n.id) : null}
           </SidebarMenuSubItem>
@@ -137,7 +137,7 @@ function AppSidebar({ route }: { route: Route }) {
               {/* 프로젝트 목록(첫 화면)으로 돌아간다. 다른 프로젝트는 새로 열어 출처를 섞지 않는다(C-11) */}
               <a href={window.location.pathname}>
                 <FolderOpen aria-hidden />
-                다른 프로젝트
+                프로젝트 목록
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -162,7 +162,7 @@ function AppSidebar({ route }: { route: Route }) {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>WBS</SidebarGroupLabel>
+          <SidebarGroupLabel>작업 구성</SidebarGroupLabel>
           <SidebarGroupContent>
             <WbsTree route={route} />
           </SidebarGroupContent>
@@ -170,7 +170,7 @@ function AppSidebar({ route }: { route: Route }) {
       </SidebarContent>
       <SidebarFooter>
         <label className="flex items-center justify-between gap-2 px-2 text-xs text-muted-foreground">
-          닫힌 노드 보기
+          취소·분할·통합된 노드도 보기
           <Switch checked={showClosed} onCheckedChange={setShowClosed} />
         </label>
       </SidebarFooter>
@@ -188,7 +188,7 @@ function Crumbs({ route }: { route: Route }) {
       const n = node(id)
       items.push({ href: n.kind === 'summary' ? `#wbs-${id}` : `#task-${id}`, label: n.kind === 'task' ? `${id} ${n.name}` : n.name })
     }
-  const here = { overview: '개요', wbs: '하위 공정표', dag: '의존 관계', task: 'Task 상세', agent: 'Agent Graph', approval: `승인 ${route.id ?? ''}`, phase: 'Phase별', milestone: 'Milestone별' }[route.view]
+  const here = { overview: '개요', wbs: '공정표', dag: '작업 네트워크', task: 'Task 상세', agent: 'Agent 그래프', approval: `승인 요청 ${route.id ?? ''}`, phase: '작업 단계별', milestone: '마일스톤별' }[route.view]
   const shown: ({ href: string; label: string } | null)[] = items.length > 3 && !open ? [items[0], null, ...items.slice(-2)] : items
   return (
     <nav aria-label="현재 위치" className="min-w-0 flex-1">
@@ -292,11 +292,11 @@ function Find() {
                   {nameOf(id)}
                   {rework ? <span className="text-xs text-muted-foreground"> · {reworkText(RM.rework(model, id).at(-1))}</span> : null}
                 </span>
-                <StatusBadge state={RM.card(model, id).rep} />
+                <StatusBadge state={RM.card(model, id).rep} rep />
               </a>
             ))
           ) : (
-            <p className="px-2 py-1.5 text-muted-foreground">찾은 Task가 없습니다</p>
+            <p className="px-2 py-1.5 text-muted-foreground">조건에 맞는 Task가 없습니다.</p>
           )}
         </div>
       ) : null}
@@ -325,7 +325,7 @@ function Origin() {
     return (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
         {badge}
-        <span>실행 기록 없음 · 인수 기록 {bundle.accepted?.length ?? 0}건 (작업은 Catena가 시작하지 않은 Coding Agent 세션)</span>
+        <span>실행 기록 없음 · 검수 기록 {bundle.accepted?.length ?? 0}건 (작업은 Catena 밖의 Coding Agent 세션에서 함)</span>
       </div>
     )
   return (
@@ -343,7 +343,7 @@ function Origin() {
         {m.origin === 'simulated' ? ' (가상 시각)' : ''}
       </output>
       <Button variant="outline" size="xs" onClick={() => setPos(bundle.total)} disabled={pos === bundle.total}>
-        끝으로
+        마지막으로
       </Button>
     </div>
   )
@@ -354,7 +354,7 @@ export function AppShell({ route, children }: { route: Route; children: ReactNod
   const todos = RM.inbox(model)
   return (
     // 사이드바는 WBS 트리가 세 단계까지 들어가므로 기본(16rem)보다 넓게 둔다.
-    <SidebarProvider style={{ '--sidebar-width': '19rem' } as CSSProperties}>
+    <SidebarProvider style={{ '--sidebar-width': '22rem' } as CSSProperties}>
       <AppSidebar route={route} />
       <SidebarInset>
         <header className="z-10 flex flex-col gap-2.5 border-b bg-background px-4 py-3 lg:sticky lg:top-0 lg:rounded-t-xl lg:px-8">
@@ -364,7 +364,7 @@ export function AppShell({ route, children }: { route: Route; children: ReactNod
             <Crumbs key={`${route.view}-${route.id}`} route={route} />
             <Find />
             <Badge variant="user" asChild>
-              <a href="#overview">결정할 일 {todos.length}</a>
+              <a href="#overview">검토 대기 {todos.length}건</a>
             </Badge>
           </div>
           <Origin />

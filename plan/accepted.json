@@ -179,5 +179,112 @@
     },
     "approved_at": "2026-11-13",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T21",
+    "contract": "sha256:714fa4c6f83e4ec31a57ea3bf5cf17d1dbf8e3d7e975573aa895debcd12204c1",
+    "evidence": {
+      "T21-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43578438629 (commit a1b93cb). engine/verify.test.ts \"T21-C1: 새 checkout에서 Task 명세의 검사 방법으로 검사하고, 검사 방법이 없는 필수 조건은 미실행으로 남아 검수가 거부된다\", \"T21-C1: Agent가 검사 파일을 바꾸면 결과 기록 단계에서 거부되어 검사도 검수도 하지 않는다\"",
+      "T21-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43578438629 (commit a1b93cb). engine/verify.test.ts \"T21-C2: Agent가 \\\"테스트 통과\\\"라고 보고해도 검수 근거 없이는, 또 검사가 실패하면 검수되지 않는다. 통과한 근거로만 검수된다\""
+    },
+    "approved_at": "2026-11-14",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T24",
+    "contract": "sha256:92eaf6b98a1e6c3d77696ad4e314429df0b1980b14be727eb2e02cf609c8c9c5",
+    "evidence": {
+      "T24-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43578990279 (commit 19a09d6). engine/budget.test.ts \"T24-C1: 예산 상한을 넘는 예약은 신규 착수가 거부되고, 상한이 있으면 Run마다 예약액이 필요하다\", \"T24-C1: Run이 예약액을 다 쓰면 다음 단계 경계에서 멈추고 새 단계를 시작하지 않는다. Runner에는 예약보다 낮은 한도를 준다\", \"T24-C1: 구독 사용 한도 신호를 받으면 단계 경계에서 멈추고, 구독 사용량은 예산(금액)에 넣지 않는다\""
+    },
+    "approved_at": "2026-11-14",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T37",
+    "contract": "sha256:857396dc63b64e46e28299fee4f9f5b065cf6260328decfee86a19873c191bb8",
+    "evidence": {
+      "T37-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588529883 (commit 1d03fe4). engine/codex.test.ts \"T37-C1: Codex로 띄운 Run도 노드 시작·활동·끝, 원문, Agent 결과 기록이 남고 검사 규칙을 통과한다\"",
+      "T37-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588529883 (commit 1d03fe4). engine/codex.test.ts \"T37-C2: 한 계획에서 A는 Claude Code, B는 Codex로 실행하고, 노드 기록에 어느 Agent 프로그램이 했는지 남는다\""
+    },
+    "approved_at": "2026-11-14",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T22",
+    "contract": "sha256:549d8519c044bb3c843433e76817338fd430b9d04c6f5883e24b0f7b7f5cf1d8",
+    "evidence": {
+      "T22-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43586827063 (commit c4115fb). engine/accept.test.ts \"T22-C1: 승인은 대화형 CLI에서만 받는다. 비대화형 실행·Runner 채널·사람이 아닌 주체의 승인은 거부된다\"",
+      "T22-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43586827063 (commit c4115fb). engine/accept.test.ts \"T22-C2: 검수 기록에서 Baseline·근거·승인·commit을 따라갈 수 있고, 검사 뒤 작업공간이 바뀌어도 검수 대상은 그대로다\"",
+      "T22-C3": "검수표에서 사용자가 승인(2026-11-14T12:58:24.164Z, https://macmini.ewe-mermaid.ts.net:5182/?review=accept, 결정 파일 ~/.catena/reviews/acceptance.json). 검토 대상: 14-15 결정(한계로 두고 표시, 명세 v0.10.6)과 그 구현(승인 기록의 채널·한계 문구, 승인 화면 표시)"
+    },
+    "approved_at": "2026-11-14",
+    "channel": "검수표"
+  },
+  {
+    "task_id": "T35",
+    "contract": "sha256:bc66e899b62f91e4f4efb217294dd7d8b258914192f2f72faadf95f5096c725c",
+    "evidence": {
+      "T35-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588749009 (commit 4993ce0). tools/copy-review-store.test.ts(항목별 저장·재조회·잘못된 입력 거부·동시 수정 충돌 거부·내보내기)",
+      "T35-C2": "검수표에서 사용자가 승인(2026-11-14T12:58:21.153Z, https://macmini.ewe-mermaid.ts.net:5182/?review=accept, 결정 파일 ~/.catena/reviews/acceptance.json). 검토 대상: 문구 첨삭 화면(?review=copy)에서 항목별 첨삭·원문 유지·보류·저장 후 이어보기·내보내기"
+    },
+    "approved_at": "2026-11-14",
+    "channel": "검수표"
+  },
+  {
+    "task_id": "T36",
+    "contract": "sha256:aa5eb176578fe5da4b5594bcade240c30bc0e83e0ddf56c6518cfb0a7abdc792",
+    "evidence": {
+      "T36-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588749009 (commit 4993ce0). tools/acceptance-store.test.ts \"T36-C1: 사람 확인 조건이 남은 Task만 고르고…\", \"T36-C1: 결정은 승인·반려·보류만…\", \"T36-C1: 측정표 저장은 사용자 열만 바꾸고…\"",
+      "T36-C2": "검수표에서 사용자가 승인(2026-11-14T12:58:23.195Z, https://macmini.ewe-mermaid.ts.net:5182/?review=accept, 결정 파일 ~/.catena/reviews/acceptance.json). 사용자가 다른 기기에서 Tailscale HTTPS로 검수표를 열어 결정을 남김"
+    },
+    "approved_at": "2026-11-14",
+    "channel": "검수표"
+  },
+  {
+    "task_id": "T06",
+    "contract": "sha256:9516850d9abf5d6d8ed43b2b8fe258ca74ab20622d9e24b4eb417a39eef2e1ba",
+    "evidence": {
+      "T06-C1": "사용자가 대시보드를 써 보고 검수표에서 승인(2026-11-14T12:58:15.095Z)했고, 대화에서 \"다 내가 파악하기에는 괜찮아. 내가 중간중간 확인하면서 불편한 점 있으면 그 때 고치도록 하자\"(2026-11-15)며 공식 측정 대신 쓰면서 확인하는 방식을 골랐다(명세 v0.10.8)"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T23",
+    "contract": "sha256:8b33ba67e5f700058c20156ed6f985671c2d13c929bcc45876a9de6afe6ae184",
+    "evidence": {
+      "T23-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43673166269 (commit 71bf75f). engine/workflow.test.ts \"T23-C1: 검사가 상한(3회)만큼 실패하면 Run이 실패로 끝나고 decision 대기가 생긴다\"",
+      "T23-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43673166269 (commit 71bf75f). engine/workflow.test.ts \"T23-C2: 수정 회차에는 실패한 검사를 알려 주고, 통과하면 검수를 기록하고 Run을 종료한다(대기 → 실행 중 → 종료)\", \"T23-C2: 사용자 확인 조건이 있으면 승인을 기다린다 — 승인하면 검수·종료, 반려하면 실패와 decision 대기, 기다리는 중 취소하면 취소\""
+    },
+    "approved_at": "2026-11-15",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T07",
+    "contract": "sha256:5bff3ca9db46eb35970537cf8d5fe19093c2375a259a50015f6f3454f70b51bd",
+    "evidence": {
+      "T07-C2": "ExecutionEvent 형식 버전 1 확정을 담은 명세 개정 core_spec_v0.10.9.md(commit e716e4a)를 사용자가 대화에서 \"v0.10.9 승인할게\"(2026-11-15)로 승인했다"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T34",
+    "contract": "sha256:0f48c30269047c987fd8b5a8f681423f1fa4a10325f00f317d0a3cfdc74639f3",
+    "evidence": {
+      "T34-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43678513662 (commit d6be597). tools/eventformat.test.ts \"T34-C1: 두 시나리오 묶음의 이벤트가 모두 형식 버전 1에 맞는다\"; Engine이 발행하는 이벤트는 명령 계층(engine/commands.ts)이 formatErrors로 확인하므로 engine 시험 전체가 통과한 것이 그 확인이다(engine/mvp.test.ts A → B의 actor 규칙과 승인 종류 품질 포함)"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T25",
+    "contract": "sha256:222e6fe780498efc9690041b9f2690a508b716865dbf87689eeaa11b0beae477",
+    "evidence": {
+      "T25-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43682298064 (commit 9d306ee). engine/mvp.test.ts \"Engine MVP: A(Claude Code) → B(Codex)가 슬롯 게이트, 검사, 승인을 거쳐 검수까지 완주한다(기준 1, 6, 7, 9, 12, 14)\"와 docs/engine-mvp-report.md의 기준별 시험 대응표(기준 1~14)",
+      "T25-C2": "사용자가 자기 터미널에서 run A(Claude Code) → run B(Codex)를 cli-tty로 시작하고 approve(cli-tty)로 승인해 두 Task가 검수되고 Run이 종료됐다(저장소 ~/.catena/examples/engine-mvp/store, 이벤트 54건 E1~E11·형식 버전 1 통과, 결과는 docs/engine-mvp-report.md). 대화에서 \"T25 승인할게\"(2026-11-15)로 승인"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "Claude Code 대화"
   }
 ]

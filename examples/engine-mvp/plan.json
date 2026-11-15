@@ -1,0 +1,29 @@
+{
+  "project": { "project_id": "engine-mvp-example", "name": "Engine MVP 시험: slug 도구" },
+  "phases": [{ "id": "P1", "name": "구현" }],
+  "milestones": [{ "id": "M1", "name": "slug 도구 완성", "items": ["B"] }],
+  "wbs": [
+    {
+      "id": "A", "name": "slug 함수 구현", "phase": "P1", "agent": "claude-code",
+      "goal": "src/slug.mjs에 slugify(text)를 export한다. 영문 대문자는 소문자로 바꾸고, 영문·숫자가 아닌 문자가 이어지면 하이픈 하나로 바꾸며, 앞뒤 하이픈은 없앤다. test/는 고치지 않는다.",
+      "outputs": { "slug": "코드" },
+      "write_scope": ["src/**"],
+      "conditions": [
+        { "id": "A-C1", "method": "auto", "slot": "slug", "text": "slug 함수 시험(test/slug.test.mjs) 통과",
+          "verify": { "command": "node --test test/slug.test.mjs", "files": ["test/slug.test.mjs"] } }
+      ]
+    },
+    {
+      "id": "B", "name": "slug 명령줄 도구 구현", "phase": "P1", "agent": "codex",
+      "goal": "bin/slug.mjs를 만든다. 명령줄 인자를 공백으로 이어 src/slug.mjs의 slugify로 바꾼 결과를 한 줄로 표준 출력에 쓴다. 인자가 없으면 '사용법: node bin/slug.mjs <문장>'을 표준 오류에 쓰고 종료 코드 2로 끝낸다. src/와 test/는 고치지 않는다.",
+      "inputs": { "slug": "A.slug" },
+      "outputs": { "cli": "코드" },
+      "write_scope": ["bin/**"],
+      "conditions": [
+        { "id": "B-C1", "method": "auto", "slot": "cli", "text": "명령줄 도구 시험(test/cli.test.mjs) 통과",
+          "verify": { "command": "node --test test/cli.test.mjs", "files": ["test/cli.test.mjs"] } },
+        { "id": "B-C2", "method": "human", "slot": "cli", "text": "사용자가 사용법 문구와 출력을 보고 확인한다" }
+      ]
+    }
+  ]
+}

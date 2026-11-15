@@ -8,7 +8,7 @@ export type LaunchSpec = { command: string[]; argv: string[]; env: NodeJS.Proces
 
 /** R-4 prepare. command는 실행 파일과 앞쪽 인자다(기본 ['claude'], 시험에서는 가짜 CLI). */
 export function prepare(x: {
-  command?: string[]; worktree: string; tmpDir: string; prompt: string;
+  command?: string[]; worktree: string; tmpDir: string; prompt: string; runId?: string;
   permissionMode: string; maxTurns: number; model?: string | null; budgetUsd?: number | null;
 }): LaunchSpec {
   const argv = [
@@ -19,7 +19,8 @@ export function prepare(x: {
     ...(x.budgetUsd ? ['--max-budget-usd', (x.budgetUsd * 0.9).toFixed(2)] : []),
   ];
   // 사용자 환경을 그대로 상속한다. 바꾸는 것은 Run 전용 TMPDIR과 백그라운드 대기 상한뿐이다(R-6.1)
-  const env = { ...process.env, TMPDIR: x.tmpDir, CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: '5000' };
+  // CATENA_RUN_ID: Agent 안에서 catena를 부르면 Runner 채널로 알아본다(승인 거부, 9-10)
+  const env = { ...process.env, TMPDIR: x.tmpDir, CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: '5000', ...(x.runId ? { CATENA_RUN_ID: x.runId } : {}) };
   return { command: x.command ?? ['claude'], argv, env, cwd: x.worktree, stdin: x.prompt };
 }
 
@@ -39,16 +40,18 @@ export const stop = (h: Handle) => realProcs.killGroup(h.pgid);
 
 export type Draft =
   | { type: 'agent.activity'; payload: { kind: '도구 호출' | '메시지'; summary: string; source: 'Agent 보고' } }
-  | { type: 'init'; payload: { model?: string; session_id?: string } }
-  | { type: 'result'; payload: { ok: boolean; subtype?: string; cost_usd: number; tokens?: number } }
+  | { type: 'init'; payload: { model?: string; session_id?: string; apiKeySource?: string } }
+  | { type: 'result'; payload: { ok: boolean; subtype?: string; cost_usd?: number; tokens?: number } } // cost_usd: 보고하지 않는 Runtime(Codex)은 없음
   | { type: 'rate_limit'; payload: { status?: string } };
 
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+// 활동 요약은 한 줄이다(여러 줄 명령·메시지가 목록 줄을 깨지 않게). 전체는 transcript 원문에 남는다
+export const clip = (t: string, n: number) => { const s = t.replace(/\s+/g, ' ').trim(); return s.length > n ? `${s.slice(0, n)}…` : s; };
 
 /** R-7: stream-json 한 줄(객체)을 이벤트 초안으로. 표에 없는 종류는 버리고 원문(transcript)에만 남긴다. */
 export function normalize(msg: any): Draft[] {
   if (!msg || typeof msg !== 'object') return [];
-  if (msg.type === 'system' && msg.subtype === 'init') return [{ type: 'init', payload: { model: msg.model, session_id: msg.session_id } }];
+  // apiKeySource는 인증 방식의 이름뿐이다(none이면 구독 로그인). 자격증명 값은 읽지 않는다
+  if (msg.type === 'system' && msg.subtype === 'init') return [{ type: 'init', payload: { model: msg.model, session_id: msg.session_id, ...(msg.apiKeySource ? { apiKeySource: msg.apiKeySource } : {}) } }];
   if (msg.type === 'assistant') {
     const out: Draft[] = [];
     for (const c of msg.message?.content ?? []) {

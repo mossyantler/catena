@@ -2,20 +2,21 @@
 import type { CSSProperties } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { TONE_BG, toneOf, type Tone } from '@/lib/status'
+import { label, stageLabel, TONE_BG, toneOf, type Tone } from '@/lib/status'
 import { cn } from '@/lib/utils'
 
-export function StatusBadge({ state, tone, className }: { state: string; tone?: Tone; className?: string }) {
+/** rep: Task 대표 상태(실패·종료·취소·대기를 실행 기준 이름으로 보인다) */
+export function StatusBadge({ state, tone, rep, className }: { state: string; tone?: Tone; rep?: boolean; className?: string }) {
   return (
     <Badge variant={tone ?? toneOf(state)} className={className}>
-      {state}
+      {label(state, rep)}
     </Badge>
   )
 }
 
 /** Agent Graph의 실행 단계(계획·구현·검증·승인). Project Phase와 다르므로 색 없이 테두리만. */
 export function StageTag({ stage }: { stage: string }) {
-  return <Badge variant="quiet">{stage}</Badge>
+  return <Badge variant="quiet">{stageLabel(stage)}</Badge>
 }
 
 export function Tid({ id, className }: { id: string; className?: string }) {
@@ -32,7 +33,7 @@ export function CountsBar({ counts, legend = true, className }: { counts: Map<st
   if (!total) return null
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex h-2 w-full gap-0.5 overflow-hidden rounded-full" role="img" aria-label={[...counts].map(([k, v]) => `${k} ${v}`).join(', ')}>
+      <div className="flex h-2 w-full gap-0.5 overflow-hidden rounded-full" role="img" aria-label={[...counts].map(([k, v]) => `${label(k, true)} ${v}`).join(', ')}>
         {[...counts].map(([k, v]) => (
           <span key={k} className={cn('h-full grow-(--n)', TONE_BG[toneOf(k)])} style={{ '--n': v } as CSSProperties} />
         ))}
@@ -42,7 +43,7 @@ export function CountsBar({ counts, legend = true, className }: { counts: Map<st
         {[...counts].map(([k, v]) => (
           <span key={k} className="inline-flex items-center gap-1.5">
             <ToneDot state={k} />
-            {k}
+            {label(k, true)}
             <span className="font-mono text-foreground">{v}</span>
           </span>
         ))}

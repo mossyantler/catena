@@ -35,11 +35,11 @@ export function BaselinePage() {
           </Badge>
         }
       />
-      <Section title={`Task ${tasks.length}개`} description="ID 순서입니다. 입력은 계획에서 선언한 공급 Task와 슬롯입니다.">
+      <Section title={`Task ${tasks.length}개`} description="ID 순서입니다. 입력은 계획에서 선언한 선행 Task와 결과 항목입니다.">
         <Table>
           <TableHeader>
             <TableRow>
-              {['ID', '이름', '상위 항목', 'Phase', '입력(공급 Task.슬롯)', '완료 조건'].map((h) => (
+              {['ID', '이름', '상위 항목', '작업 단계', '입력(선행 Task.결과 항목)', '완료 조건'].map((h) => (
                 <TableHead key={h}>{h}</TableHead>
               ))}
             </TableRow>
