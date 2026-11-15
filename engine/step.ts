@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { foldAll } from '../tools/readmodel.ts';
-import { execute, HANDLERS, Refusal } from './commands.ts';
+import { AGENTS, execute, HANDLERS, Refusal } from './commands.ts';
 import { holds, realProcs, recordProcess, renewLease, type Holder } from './supervise.ts';
 import { lines, normalize, prepare, start, stop, type Draft } from './runner.ts';
 import { normalizeCodex, prepareCodex } from './codex.ts';
@@ -20,6 +20,8 @@ const setRun = (s: Store, run_id: string, patch: object, state?: string) => {
   const r = runRow(s, run_id)!;
   s.db.prepare('UPDATE runs SET state = ?, payload = ? WHERE run_id = ?').run(state ?? r.state, JSON.stringify({ ...JSON.parse(r.payload), ...patch }), run_id);
 };
+// Agent 노드의 시작과 활동은 그 Agent 프로그램이 한 일로 적는다(Product MVP 형식: actor = Worker Agent). 기록 자체는 Orchestrator가 한다
+const agentActor = (s: Store, run_id: string) => ({ kind: 'agent' as const, role: 'Worker', instance: JSON.parse((s.db.prepare('SELECT payload FROM tickets WHERE run_id = ?').get(run_id) as { payload: string }).payload).profile?.runtime ?? 'claude-code' });
 const mustHold = (s: Store, run_id: string, holder: Holder) => { if (!holds(s, run_id, holder)) throw new Refusal('버전 충돌', `감독 임대를 갖지 않았다 ${run_id}`); };
 
 // Project 설정: 지켜보는 사람이 없는 실행의 권한 모드(R-3 7, 0-5)와 Project의 git 저장소(1-1)
@@ -62,7 +64,7 @@ HANDLERS['node.start'] = {
   run: (s, cmd, _p, emit) => {
     const { run_id, node_id, iteration, holder, profile } = cmd.args;
     mustHold(s, run_id, holder);
-    emit({ type: 'node.started', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, profile } });
+    emit({ type: 'node.started', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, profile }, ...(AGENTS.includes(profile?.runtime) ? { actor: agentActor(s, run_id) } : {}) });
   },
 };
 
@@ -72,7 +74,8 @@ HANDLERS['node.events'] = {
   run: (s, cmd, _p, emit) => {
     const { run_id, node_id, iteration, holder, activities } = cmd.args;
     mustHold(s, run_id, holder);
-    for (const a of activities) emit({ type: 'agent.activity', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, ...a } });
+    const actor = agentActor(s, run_id);
+    for (const a of activities) emit({ type: 'agent.activity', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, ...a }, actor });
   },
 };
 
@@ -81,7 +84,7 @@ HANDLERS['node.finish'] = {
   run: (s, cmd, _p, emit) => {
     const { run_id, node_id, iteration, holder, result, usage, transcript, billing } = cmd.args;
     mustHold(s, run_id, holder);
-    if (transcript) emit({ type: 'agent.activity', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, kind: '메시지', summary: 'Runtime 출력 원문(transcript)', source: '시스템 기록', raw_ref: transcript } });
+    if (transcript) emit({ type: 'agent.activity', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, kind: '메시지', summary: 'Runtime 출력 원문(transcript)', source: '시스템 기록', raw_ref: transcript }, actor: agentActor(s, run_id) });
     // Runner가 보고한 비용은 클라이언트 추정치다. 구독 인증이면 청구액이 아니므로 과금 방식을 함께 남긴다(5-7)
     if (usage) emit({ type: 'usage.recorded', subject: run_id, issuer: 'Resource', payload: { run_id, node_id, cost_usd: usage.cost_usd ?? 0, tokens: usage.tokens, reliability: usage.cost_usd === undefined ? '알 수 없음' : '추정값', billing: billing ?? '알 수 없음' } });
     emit({ type: 'node.finished', subject: run_id, issuer: 'Execution', payload: { run_id, node_id, iteration, result } });

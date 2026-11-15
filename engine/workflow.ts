@@ -38,8 +38,9 @@ const repairNote = (checks: Checked[], s: Store) => {
 };
 
 /** Run 하나를 워크플로우 끝까지 감독한다. 대기 중인 Run이면 시작(임대 획득)부터 한다. */
-export async function runWorkflow(s: Store, o: { run_id: string; holder: Holder; command?: string[]; tickMs?: number; pollMs?: number; ttlMs?: number }): Promise<WorkflowResult> {
+export async function runWorkflow(s: Store, o: { run_id: string; holder: Holder; command?: string[]; tickMs?: number; pollMs?: number; ttlMs?: number; log?: (msg: string) => void }): Promise<WorkflowResult> {
   const ttl = o.ttlMs ?? 30_000;
+  const log = o.log ?? (() => {});
   let m = foldAll(s.events(), s.refCheck);
   const run = m.runs.get(o.run_id);
   if (!run) throw new Error(`Run ${o.run_id}을(를) 찾을 수 없다`);
@@ -52,6 +53,7 @@ export async function runWorkflow(s: Store, o: { run_id: string; holder: Holder;
   let passed: string | undefined;
   let i = 1;
   for (; i <= limit; i++) {
+    log(`구현 ${i}회차 시작(${run.task})`);
     const step = await runAgentNode(s, { run_id: o.run_id, node_id: 'work', iteration: i, holder: o.holder, command: o.command, tickMs: o.tickMs, ttlMs: ttl, repair: note });
     if (step.cancelled) return { outcome: '취소', iterations: i };
     if (step.paused) return { outcome: '일시 중단', reason: step.paused, iterations: i };
@@ -63,6 +65,7 @@ export async function runWorkflow(s: Store, o: { run_id: string; holder: Holder;
       if (!holds(s, o.run_id, o.holder)) return { outcome: /멈췄다/.test((err as Error).message) ? '일시 중단' : '중단', reason: (err as Error).message, iterations: i };
       throw err;
     }
+    log(`검사 ${i}회차: ${checks.map(c => `${c.condition_id} ${c.result}`).join(', ') || '검사할 자동 조건 없음'}`);
     if (checks.every(c => c.result === '통과')) { passed = step.submission.submission_id; break; }
     note = repairNote(checks, s);
   }
@@ -75,6 +78,7 @@ export async function runWorkflow(s: Store, o: { run_id: string; holder: Holder;
   if (approve) {
     const req = ok(requestApproval(s, passed), 'approval.request');
     const approval_id = req.events[0].payload.approval_id;
+    log(`사용자 승인을 기다린다. 다른 터미널에서: node tools/catena.ts approve ${approval_id} --store ${s.dir}  (반려: --reject --comment 이유)`);
     const ids = { run_id: o.run_id, node_id: 'approve', iteration: 1, holder: o.holder };
     ok(execute(s, { command: 'node.start', principal: SYSTEM, channel: 'runner', args: { ...ids, profile: { runtime: '사용자', model: '승인' } } }), 'node.start');
     // 사용자가 대화형 CLI(또는 검수표·화면)에서 결정할 때까지 기다린다. 기다리는 동안 감독 임대를 연장하고 취소 요청을 본다

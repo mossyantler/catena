@@ -44,7 +44,8 @@ export type Draft =
   | { type: 'result'; payload: { ok: boolean; subtype?: string; cost_usd?: number; tokens?: number } } // cost_usd: 보고하지 않는 Runtime(Codex)은 없음
   | { type: 'rate_limit'; payload: { status?: string } };
 
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+// 활동 요약은 한 줄이다(여러 줄 명령·메시지가 목록 줄을 깨지 않게). 전체는 transcript 원문에 남는다
+export const clip = (t: string, n: number) => { const s = t.replace(/\s+/g, ' ').trim(); return s.length > n ? `${s.slice(0, n)}…` : s; };
 
 /** R-7: stream-json 한 줄(객체)을 이벤트 초안으로. 표에 없는 종류는 버리고 원문(transcript)에만 남긴다. */
 export function normalize(msg: any): Draft[] {

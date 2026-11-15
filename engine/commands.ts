@@ -24,7 +24,7 @@ export class Refusal extends Error {
 export type Handler = {
   principals: Principal['kind'][];         // 이 명령을 낼 수 있는 주체(9-1: Agent는 질의와 요청만 한다)
   prepare?: (s: Store, cmd: Command) => any; // 트랜잭션 전에 할 일(산출물 파일 쓰기, 14-3 쓰기 순서)
-  run: (s: Store, cmd: Command, prepared: any, emit: (d: Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'origin' | 'dataset_id' | 'occurred_at' | 'actor'>) => void) => void;
+  run: (s: Store, cmd: Command, prepared: any, emit: (d: Omit<Event, 'seq' | 'event_id' | 'schema_version' | 'origin' | 'dataset_id' | 'occurred_at' | 'actor'> & { actor?: Event['actor'] }) => void) => void;
 };
 
 const sha = (t: string) => createHash('sha256').update(t).digest('hex');
@@ -123,6 +123,8 @@ export const HANDLERS: Record<string, Handler> = {
       const attempt = [...m.runs.values()].filter((r: any) => r.task === a.task_id).length + 1;
       const run_id = `${a.task_id}-r${attempt}`;
       const { bindings, commits } = suppliedCommits(s, m, a.task_id);
+      const missing = bindings.filter(b => !b.submission_id).map(b => b.from);
+      if (missing.length) throw new Refusal('규칙 위반', `E6: 입력 항목이 아직 검수되지 않았다(${missing.join(', ')}). 선행 Task를 먼저 검수한다(1-4)`);
       if (commits.length > 1) throw new Refusal('규칙 위반', `입력 공급 commit이 둘 이상이다(병합은 확장, 3-4): ${commits.join(', ')}`);
       const base_ref = commits[0] ?? a.base_ref;
       if (typeof base_ref !== 'string' || !base_ref) throw new Refusal('규칙 위반', 'base_ref가 없다: 입력이 없는 Task는 프로젝트 기준 commit을 넘긴다(1-1)');
@@ -192,7 +194,7 @@ export function execute(s: Store, cmd: Command): Outcome {
       const at = new Date().toISOString();
       const actor = { kind: cmd.principal.kind, instance: cmd.principal.id };
       const events: Event[] = [];
-      h.run(s, cmd, prepared, d => events.push(s.append({ ...d, occurred_at: at, actor })));
+      h.run(s, cmd, prepared, d => events.push(s.append({ ...d, occurred_at: at, actor: d.actor ?? actor })));
       foldAll(s.events(), s.refCheck); // 규칙을 어기면 RuleError로 트랜잭션 전체가 되돌려진다
       const version = versionOf(s);
       s.db.prepare('INSERT INTO commands VALUES (?, ?, ?, ?, ?, ?, ?)').run(

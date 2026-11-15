@@ -8,7 +8,7 @@
 // --json: { schema_version, command, source: { origin, dataset_id, position, total }, data | error: { kind, message } }
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { foldBundle } from './fold.ts';
 import * as RM from './readmodel.ts';
 import { defaultStoreDir, openStore } from '../engine/store.ts';
@@ -17,12 +17,13 @@ import { recoverExpired } from '../engine/supervise.ts';
 import '../engine/accept.ts';
 import { askAgent, importAgentPlan, plannerPrompt } from '../engine/goalplan.ts';
 import { runWorkflow } from '../engine/workflow.ts';
+import { projectSettings } from '../engine/step.ts';
 import { me } from '../engine/supervise.ts';
 import { tmpdir } from 'node:os';
 import { createInterface } from 'node:readline/promises';
 
 export const CLI_SCHEMA = 2; // 2: run_attempt·agent_round·repairs, 승인 범위, show의 relations, raw 명령(T27)
-const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더 · plan from-goal "<goal>" [--agent claude-code|codex] [--project-id ID] [--store 폴더] · run <Task> --store 폴더 [--base-ref commit] [--budget USD]';
+const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더 · plan from-goal "<goal>" [--agent claude-code|codex] [--project-id ID] [--store 폴더] · project configure --store 폴더 [--repo git저장소] [--permission-mode 모드] [--budget USD] · run <Task> --store 폴더 [--base-ref commit] [--budget USD]';
 const EXIT: Record<Reason, number> = { '규칙 위반': 1, '대상 없음': 3, '권한 거부': 4, '버전 충돌': 5 };
 class CliError extends Error {
   kind: string; code: number;
@@ -206,6 +207,20 @@ function planImport(args: string[], storeDir: string | undefined, json: boolean)
   } finally { s.close(); }
 }
 
+// project configure: Agent를 띄울 git 저장소(1-1), Claude Code 권한 모드(R-3 7), 프로젝트 예산 상한(5-1)을 정한다
+function configure(storeDir: string | undefined, repo: string | undefined, mode: string | undefined, budget: string | undefined, json: boolean) {
+  if (!storeDir || (!repo && !mode && budget === undefined)) throw new CliError('사용법 오류', 2, USAGE);
+  if (repo && !existsSync(join(repo, '.git'))) throw new CliError('사용법 오류', 2, `git 저장소가 아니다: ${repo}`);
+  if (budget !== undefined && !(Number(budget) >= 0)) throw new CliError('사용법 오류', 2, `--budget은 0 이상의 금액(USD)이다: ${budget}`);
+  const s = openStore(storeDir);
+  try {
+    const r = execute(s, { command: 'project.configure', principal: { kind: 'human', id: 'user' }, channel: process.stdin.isTTY && !json ? 'cli-tty' : 'cli-batch',
+      args: { ...(repo ? { repo: resolve(repo) } : {}), ...(mode ? { permission_mode: mode } : {}), ...(budget !== undefined ? { budget_usd: Number(budget) } : {}) } });
+    if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
+    return { store: storeDir, settings: projectSettings(s), version: r.version };
+  } finally { s.close(); }
+}
+
 // approve: 승인·반려는 대화형 터미널에서 확인 입력을 받아야 한다(9-10). 파이프·--json·Runner 안(CATENA_RUN_ID)에서 부르면
 // 그 채널 그대로 명령에 넘겨 명령 계층이 거부한다. 같은 사용자 권한의 Agent가 터미널을 흉내 내는 것은 막지 않는다(14-15)
 async function approve(args: string[], storeDir: string | undefined, json: boolean, reject: boolean, comment: string | undefined) {
@@ -215,8 +230,8 @@ async function approve(args: string[], storeDir: string | undefined, json: boole
   const decision = reject ? '반려' : '승인';
   if (channel === 'cli-tty') {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    const answer = await rl.question(`승인 요청 ${id}을(를) ${decision}합니다. 계속하려면 '${decision}'을 입력하세요: `);
-    rl.close();
+    // Ctrl+C·Ctrl+D로 그만두면 질문이 거부된다. 오류 대신 아무것도 하지 않았다고 알린다
+    const answer = await rl.question(`승인 요청 ${id}을(를) ${decision}합니다. 계속하려면 '${decision}'을 입력하세요: `).catch(() => '').finally(() => rl.close());
     if (answer.trim() !== decision) throw new CliError('사용법 오류', 2, '확인 입력이 달라 아무것도 하지 않았다');
   }
   const s = openStore(storeDir);
@@ -241,7 +256,7 @@ async function runTask(args: string[], storeDir: string | undefined, baseRef: st
     if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
     const run_id = r.events.find(e => e.type === 'run.created')!.payload.run_id;
     console.error(`${run_id} 시작. 끝날 때까지 이 터미널이 감독한다(사용자 승인이 필요하면 다른 터미널에서 catena approve).`);
-    return { run_id, ...(await runWorkflow(s, { run_id, holder: me() })) };
+    return { run_id, ...(await runWorkflow(s, { run_id, holder: me(), log: msg => console.error(msg) })) };
   } finally { s.close(); }
 }
 
@@ -280,6 +295,8 @@ function main(argv: string[]) {
   const projectArg = opt('--project-id');
   const baseRefArg = opt('--base-ref');
   const budgetArg = opt('--budget');
+  const repoArg = opt('--repo');
+  const modeArg = opt('--permission-mode');
   const reject = argv.includes('--reject');
   if (reject) argv.splice(argv.indexOf('--reject'), 1);
   const [cmd, ...args] = argv;
@@ -312,6 +329,12 @@ function main(argv: string[]) {
     return;
   }
   try {
+    if (cmd === 'project' && args[0] === 'configure') {
+      const data = configure(storeDir, repoArg, modeArg, budgetArg, json);
+      if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'project configure', source: { origin: 'live', store: storeDir }, data }, null, 2));
+      else console.log(`Project 설정: 저장소 ${data.settings.repo ?? '-'} · 권한 모드 ${data.settings.permission_mode ?? '-'} · 예산 상한 ${data.settings.budget_usd ?? '-'} (버전 ${data.version})`);
+      return;
+    }
     if (cmd === 'plan') {
       const data = planImport(args, storeDir, json);
       if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'plan import', source: { origin: 'live', store: data.store }, data }, null, 2));

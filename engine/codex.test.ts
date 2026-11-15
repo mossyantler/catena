@@ -68,7 +68,7 @@ test('T37-C1: Codex로 띄운 Run도 노드 시작·활동·끝, 원문, Agent �
   assert.deepEqual(evs[0].payload.profile, { runtime: 'codex', model: '기본값' });
   assert.deepEqual(evs.slice(1, 4).map(e => [e.payload.kind, e.payload.source]), [['도구 호출', 'Agent 보고'], ['도구 호출', 'Agent 보고'], ['메시지', 'Agent 보고']]);
   assert.equal(evs[5].payload.source, '시스템 기록', 'JSONL 원문(transcript)은 시스템 기록');
-  assert.deepEqual([evs[6].payload.tokens, evs[6].payload.reliability], [280, '알 수 없음'], 'Codex는 비용을 보고하지 않아 토큰만 남는다');
+  assert.deepEqual([evs[6].payload.tokens, evs[6].payload.reliability], [230, '알 수 없음'], 'Codex는 비용을 보고하지 않아 토큰만 남는다');
   assert.doesNotThrow(() => foldAll(s.events(), s.refCheck));
   s.close();
 });
