@@ -67,4 +67,15 @@ node tools/catena.ts approve B-r1-s1-a1 --store ~/.catena/examples/engine-mvp/st
 
 실행에는 사용자의 Claude 구독과 Codex 계정 사용량이 든다. 결과는 아래에 적는다.
 
-(사용자 실행 결과: 아직 없음)
+### 사용자 실행 결과 (2026-11-15)
+
+사용자가 자기 터미널에서 실행했다. 저장소는 `~/.catena/examples/engine-mvp/store`이고, T34(확정된 이벤트 형식 반영) 이후의 코드다.
+
+| 단계 | 기록 |
+|---|---|
+| `run A` | 명령 `run.start`(사용자, `cli-tty`) → Agent 노드 actor `agent / Worker / claude-code` → 검사 A-C1 통과(검사 노드 actor `code / 검사`) → 승인 없이 슬롯·Task 검수 → Run 종료. 토큰 220,377(구독) |
+| `run B` | 명령 `run.start`(사용자, `cli-tty`) → A의 제출 commit에서 시작 → Agent 노드 actor `agent / Worker / codex` → 검사 B-C1 통과 → 승인 요청 `B-r1-s1-a1`(종류 `품질`, 조건 B-C2) |
+| 승인 | 명령 `approval.decide`(사용자, `cli-tty`), 결정 `승인`, 채널 한계 문구 기록 → B 슬롯·Task 검수 → Run 종료. 토큰 98,546(과금 방식 알 수 없음) |
+| 결과 | 검증된 완료 조건 3/3, 두 Task 검수됨. 제출 commit `refs/catena/submissions/A-r1-s1`(6edb05d), `B-r1-s1`(7f8735e). 이벤트 54건이 검사 규칙 E1~E11과 형식 버전 1을 모두 통과 |
+
+수정 반복은 없었다(두 Task 모두 검사 1회차 통과). 실패나 감독 상실은 일어나지 않았다.
