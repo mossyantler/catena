@@ -258,5 +258,14 @@
     },
     "approved_at": "2026-11-15",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T07",
+    "contract": "sha256:5bff3ca9db46eb35970537cf8d5fe19093c2375a259a50015f6f3454f70b51bd",
+    "evidence": {
+      "T07-C2": "ExecutionEvent 형식 버전 1 확정을 담은 명세 개정 core_spec_v0.10.9.md(commit e716e4a)를 사용자가 대화에서 \"v0.10.9 승인할게\"(2026-11-15)로 승인했다"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "Claude Code 대화"
   }
 ]
