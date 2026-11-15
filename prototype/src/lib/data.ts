@@ -98,6 +98,13 @@ export async function refreshLive(b: Bundle): Promise<Bundle> {
   }
 }
 
+/** 화면 승인·반려(T31): 화면에 보인 제출 기록과 함께 보낸다. 결과는 다음 갱신 때 이벤트로 들어온다. */
+export async function decideApproval(b: Bundle, approval_id: string, body: { decision: '승인' | '반려'; comment: string; submission_id: string }) {
+  const res = await fetch(`${b.live!.base}approvals/${encodeURIComponent(approval_id)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const r = await res.json().catch(() => ({ ok: false, reason: '불러오기 실패', message: `${res.status}` }))
+  if (!r.ok) throw new Error(`${r.reason}: ${r.message}`)
+}
+
 async function loadFrom(BASE: string, what: string): Promise<Bundle> {
   const mres = await get(BASE + 'dataset.json')
   // 없는 묶음이면 개발 서버가 404 대신 index.html을 돌려주므로 JSON이 아닌 것도 '찾지 못함'으로 본다.

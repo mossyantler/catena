@@ -56,7 +56,8 @@ async function screenModel(base: string, id: string) {
 const cli = (store: string, ...args: string[]) => JSON.parse(execFileSync(process.execPath, [join(import.meta.dirname, 'catena.ts'), ...args, '--store', store, '--json'], { encoding: 'utf8' }));
 async function until(f: () => boolean) { for (const t = Date.now() + 10_000; !f(); await new Promise(r => setTimeout(r, 20))) if (Date.now() > t) throw new Error('기다리던 상태가 오지 않았다'); }
 
-test('T30-C2: 실행 도중(승인 대기)과 끝난 뒤, 화면이 live로 받은 값과 CLI 질의 값이 같다', async () => {
+// A(가짜 Claude Code)를 검수까지 돌리고 B(가짜 Codex)를 시작해 승인을 기다리는 데까지 간다
+async function untilApproval() {
   const tmp = mkdtempSync(join(tmpdir(), 'catena-live-'));
   const repo = join(tmp, 'repo');
   mkdirSync(repo);
@@ -76,7 +77,12 @@ test('T30-C2: 실행 도중(승인 대기)과 끝난 뒤, 화면이 live로 받�
   assert.ok(execute(s, { command: 'run.start', principal: human, channel: 'cli-tty', args: { task_id: 'B' } }).ok);
   const b = runWorkflow(s, { run_id: 'B-r1', holder: me(), command: fake('fake-codex.mjs'), tickMs: 50, pollMs: 50 });
   await until(() => Boolean(s.db.prepare('SELECT 1 FROM approval_requests').get()));
+  const done = () => b.finally(() => { delete process.env.FAKE_CLAUDE_MODE; delete process.env.FAKE_CODEX_MODE; });
+  return { tmp, root, dir, s, b: done() };
+}
 
+test('T30-C2: 실행 도중(승인 대기)과 끝난 뒤, 화면이 live로 받은 값과 CLI 질의 값이 같다', async () => {
+  const { root, dir, s, b } = await untilApproval();
   const { base, close } = await serve(root);
   const same = (model: any) => {
     for (const args of [['status'], ['ready'], ['inbox'], ['graph'], ['show', 'A'], ['show', 'B'], ['agents', 'B']]) {
@@ -91,8 +97,6 @@ test('T30-C2: 실행 도중(승인 대기)과 끝난 뒤, 화면이 live로 받�
 
   assert.ok(execute(s, { command: 'approval.decide', principal: human, channel: 'cli-tty', args: { approval_id: 'B-r1-s1-a1', decision: '승인', comment: '' } }).ok);
   assert.equal((await b).outcome, '검수');
-  delete process.env.FAKE_CLAUDE_MODE;
-  delete process.env.FAKE_CODEX_MODE;
   // 화면은 마지막으로 받은 seq 뒤만 새로 받는다. 이어 붙인 흐름은 처음부터 받은 것과 같다
   const fresh = (await (await fetch(`${base}p/events.jsonl?after=${mid.lines.length}`)).text()).split('\n').filter(Boolean);
   const end = await screenModel(base, 'p');
@@ -124,4 +128,44 @@ test('T30-C1: live 저장소는 출처 live로만 내주고, 다른 출처의 �
   db.close();
   await assert.rejects(screenModel(base, 'p'), /E10/);
   await close();
+});
+
+test('T31-C1: 화면 승인과 CLI 승인이 같은 검수 기록과 이벤트를 남긴다(채널만 다르다). 화면 승인은 보인 제출 기록에 묶인다', async () => {
+  const post = (base: string, body: any, headers: Record<string, string> = { 'Content-Type': 'application/json' }) =>
+    fetch(`${base}p/approvals/B-r1-s1-a1`, { method: 'POST', headers, body: JSON.stringify(body) });
+  // 같은 계획을 두 번 돌려 하나는 대화형 CLI로, 하나는 화면(live API)으로 승인한다
+  const viaCli = await untilApproval();
+  assert.ok(execute(viaCli.s, { command: 'approval.decide', principal: human, channel: 'cli-tty', args: { approval_id: 'B-r1-s1-a1', decision: '승인', comment: '확인함' } }).ok);
+  assert.equal((await viaCli.b).outcome, '검수');
+
+  const viaWeb = await untilApproval();
+  const { base, close } = await serve(viaWeb.root);
+  const before = viaWeb.s.events().length;
+  const refused = [
+    [await post(base, { decision: '승인', comment: '', submission_id: 'B-r1-s9' }), 409, '화면에 보인 제출 기록과 다르면 버전 충돌'],
+    [await post(base, { decision: '승인', submission_id: 'B-r1-s1' }, { 'Content-Type': 'text/plain' }), 415, 'JSON이 아니면 거부(다른 사이트의 단순 요청 차단)'],
+    [await post(base, { decision: '승인', submission_id: 'B-r1-s1' }, { 'Content-Type': 'application/json', Origin: 'https://evil.example' }), 403, '다른 사이트에서 온 요청'],
+    [await post(base, { decision: '반려', comment: ' ', submission_id: 'B-r1-s1' }), 422, '반려에는 이유가 필요'],
+  ] as const;
+  for (const [res, status, why] of refused) assert.equal(res.status, status, why);
+  assert.equal(viaWeb.s.events().length, before, '거부된 요청은 아무것도 남기지 않는다');
+  const ok = await post(base, { decision: '승인', comment: '확인함', submission_id: 'B-r1-s1' });
+  assert.deepEqual([ok.status, ((await ok.json()) as any).ok], [200, true]);
+  assert.equal((await post(base, { decision: '승인', comment: '', submission_id: 'B-r1-s1' })).status, 422, '이미 결정한 요청');
+  assert.equal((await viaWeb.b).outcome, '검수');
+  await close();
+
+  // 커밋 해시·내용 해시·시각·임시 경로는 실행마다 다르므로 자리표시로 바꾸고, 승인 채널만 다른지 본다
+  const norm = (x: { tmp: string; s: any }): string[] => x.s.events().map((e: any) => JSON.stringify({ type: e.type, actor: e.actor, payload: e.payload })
+    .replaceAll(x.tmp, '<tmp>').replace(/\b[0-9a-f]{64}\b/g, '<sha>').replace(/\b[0-9a-f]{40}\b/g, '<commit>').replace(/\d{4}-\d\d-\d\dT[\d:.]+Z/g, '<time>'));
+  const cliEvents = norm(viaCli);
+  const webEvents = norm(viaWeb);
+  const decided = (evs: string[]) => evs.findIndex(e => e.includes('"approval.decided"'));
+  assert.equal(decided(cliEvents), decided(webEvents));
+  assert.deepEqual(webEvents.map((e, i) => (i === decided(webEvents) ? e.replace('"channel":"web"', '"channel":"cli-tty"') : e)), cliEvents);
+  const acc = (x: any) => x.s.db.prepare('SELECT acceptance_id, task_id FROM acceptances ORDER BY acceptance_id').all();
+  assert.deepEqual(acc(viaWeb), acc(viaCli));
+  assert.equal(JSON.parse(webEvents[decided(webEvents)]).payload.channel, 'web');
+  viaCli.s.close();
+  viaWeb.s.close();
 });

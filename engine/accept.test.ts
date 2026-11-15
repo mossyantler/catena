@@ -64,7 +64,7 @@ test('T22-C1: 승인은 대화형 CLI에서만 받는다. 비대화형 실행·R
   const cli = (env: Record<string, string> = {}) => spawnSync(process.execPath, [CLI, 'approve', approval_id, '--store', dir], { encoding: 'utf8', input: '승인\n', env: { ...process.env, ...env } });
   const piped = cli();
   assert.equal(piped.status, 4, piped.stderr);
-  assert.match(piped.stderr, /대화형 CLI에서만/);
+  assert.match(piped.stderr, /대화형 채널/);
   assert.equal(cli({ CATENA_RUN_ID: 'A-r1' }).status, 4);
   assert.ok(!foldAll(s.events(), s.refCheck).approvals.get(approval_id).decision, '아무 결정도 남지 않았다');
   // 대화형 채널의 승인: 14-15 한계를 함께 남긴다

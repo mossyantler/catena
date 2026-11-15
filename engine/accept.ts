@@ -1,13 +1,13 @@
-// 승인과 검수(T22, 7-5, 7-8, 9-3, 9-4, 9-10): 사용자 확인 조건은 같은 결과(제출 기록)에 대한 승인 요청으로 묻고,
-// 승인과 반려는 대화형 CLI에서만 받는다. 검수는 같은 제출 기록의 통과한 검수 근거와 승인으로만 기록한다.
+// 승인과 검수(T22, T31, 7-5, 7-8, 9-3, 9-4, 9-10): 사용자 확인 조건은 같은 결과(제출 기록)에 대한 승인 요청으로 묻고,
+// 승인과 반려는 대화형 채널(터미널의 CLI, Integrated부터 화면)에서만 받는다. 검수는 같은 제출 기록의 통과한 검수 근거와 승인으로만 기록한다.
 // 14-15(2026-11-14 결정): 같은 사용자 권한의 Agent가 대화형 채널을 흉내 내는 것은 막지 않고 한계로 둔다. 승인마다 그 사실을 남긴다.
 import { foldAll } from '../tools/readmodel.ts';
 import { execute, HANDLERS, Refusal } from './commands.ts';
 import type { Store } from './store.ts';
 
 const SYSTEM = { kind: 'system' as const, id: 'orchestrator' };
-/** 승인을 받을 수 있는 채널(9-10). Integrated부터 Web UI가 더해진다. */
-export const APPROVAL_CHANNELS = ['cli-tty'];
+/** 승인을 받을 수 있는 채널(9-10): 대화형 CLI와, Integrated부터 화면(Web UI, T31). */
+export const APPROVAL_CHANNELS = ['cli-tty', 'web'];
 export const CHANNEL_NOTE = '같은 사용자 권한의 Agent도 이 채널을 흉내 낼 수 있다(14-15, 한계로 둠)';
 
 const subOf = (s: Store, id: string) => {
@@ -38,10 +38,13 @@ HANDLERS['approval.request'] = {
 HANDLERS['approval.decide'] = {
   principals: ['human'],
   run: (s, cmd, _p, emit) => {
-    const { approval_id, decision, comment } = cmd.args ?? {};
-    if (!APPROVAL_CHANNELS.includes(cmd.channel)) throw new Refusal('권한 거부', `승인은 대화형 CLI에서만 받는다(9-10). 이 요청의 채널: ${cmd.channel}`);
+    const { approval_id, decision, comment, submission_id } = cmd.args ?? {};
+    if (!APPROVAL_CHANNELS.includes(cmd.channel)) throw new Refusal('권한 거부', `승인은 대화형 채널(터미널의 CLI, 화면)에서만 받는다(9-10). 이 요청의 채널: ${cmd.channel}`);
     const req = s.db.prepare('SELECT payload FROM approval_requests WHERE approval_id = ?').get(approval_id) as { payload: string } | undefined;
     if (!req) throw new Refusal('대상 없음', `승인 요청 ${approval_id}을(를) 찾을 수 없다`);
+    // 화면은 자기가 보인 제출 기록을 함께 보낸다. 승인은 그 제출 기록에만 묶인다(7-8)
+    const target = JSON.parse(req.payload).submission_id;
+    if (submission_id !== undefined && submission_id !== target) throw new Refusal('버전 충돌', `화면에 보인 제출 기록 ${submission_id}과(와) 승인 요청의 제출 기록 ${target}이 다르다(7-8)`);
     if (!['승인', '반려'].includes(decision)) throw new Refusal('규칙 위반', '결정은 승인 또는 반려다');
     if (decision === '반려' && !String(comment ?? '').trim()) throw new Refusal('규칙 위반', '반려할 때는 이유를 적는다');
     const d = { approval_id, decision, comment: comment ?? '', channel: cmd.channel, channel_note: CHANNEL_NOTE, decided_by: cmd.principal };

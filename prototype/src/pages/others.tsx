@@ -1,16 +1,76 @@
 // 승인(C-4), Phase별(C-9), Milestone별(C-10) 화면.
+import { useState } from 'react'
+
 import { KeyValues, Notice, PageHeader, Section, SubTitle } from '@/components/page'
 import { DiffText, RawButton } from '@/components/raw-viewer'
 import { CountsBar, StatusBadge, Tid } from '@/components/status'
 import { ActionText, BlockText, CondCount, TaskState } from '@/components/task'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { decideApproval } from '@/lib/data'
 import * as RM from '@/lib/rm'
 import { label, waitLabel, when } from '@/lib/status'
 import { useCatena } from '@/lib/store'
 
 // ---------------- 승인 ----------------
+
+/** 승인·반려(T31, C-4). 실제 실행(live)에서만 받고, 화면에 보인 제출 기록에 묶어 보낸다(7-8). 결과는 다음 갱신 때 이벤트로 들어온다. */
+function Decide({ approvalId, submissionId }: { approvalId: string; submissionId: string }) {
+  const { bundle } = useCatena()
+  const [comment, setComment] = useState('')
+  const [pick, setPick] = useState<'승인' | '반려' | null>(null)
+  const [state, setState] = useState<{ busy?: boolean; error?: string; sent?: string }>({})
+  if (!bundle.live)
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <Button disabled>승인</Button>
+        <Button variant="outline" disabled>
+          반려
+        </Button>
+        <span className="text-xs text-muted-foreground">시뮬레이션·기록 데이터는 볼 수만 있습니다. 승인·반려는 실제 실행 화면에서 합니다.</span>
+      </div>
+    )
+  if (state.sent) return <p className="text-sm">{state.sent}을(를) 기록했습니다. 화면이 곧 갱신됩니다.</p>
+  const send = (decision: '승인' | '반려') => {
+    setState({ busy: true })
+    decideApproval(bundle, approvalId, { decision, comment, submission_id: submissionId }).then(
+      () => setState({ sent: decision }),
+      (e) => setState({ error: (e as Error).message }),
+    )
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <label className="flex max-w-xl flex-col gap-1.5 text-sm">
+        메모 (반려할 때는 이유를 적습니다)
+        <Input value={comment} onChange={(e) => setComment(e.target.value)} disabled={state.busy || Boolean(pick)} />
+      </label>
+      {pick ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm">
+            제출 기록 <span className="font-mono">{submissionId}</span>을(를) {pick}합니다. 기록하면 되돌릴 수 없습니다.
+          </span>
+          <Button variant={pick === '반려' ? 'destructive' : 'default'} disabled={state.busy} onClick={() => send(pick)}>
+            {pick} 기록
+          </Button>
+          <Button variant="outline" disabled={state.busy} onClick={() => setPick(null)}>
+            취소
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => setPick('승인')}>승인</Button>
+          <Button variant="outline" disabled={!comment.trim()} onClick={() => setPick('반려')}>
+            반려
+          </Button>
+          <span className="text-xs text-muted-foreground">대화형 CLI의 approve와 같은 기록이 남고, 채널만 '화면'으로 적힙니다.</span>
+        </div>
+      )}
+      {state.error ? <p className="text-sm text-fail">{state.error}</p> : null}
+    </div>
+  )
+}
 export function ApprovalPage({ id }: { id: string }) {
   const { model, bundle, nameOf } = useCatena()
   const a = model.approvals.get(id)
@@ -45,18 +105,12 @@ export function ApprovalPage({ id }: { id: string }) {
               )),
             ],
             ['검토할 제출 기록', <><span className="font-mono">{a.submission_id}</span>. 승인은 이 제출 기록에만 적용됩니다. 이후 고친 결과는 다시 승인해야 합니다.</>],
-            ...(a.decision ? ([['결정', `${a.decision} · ${when(a.decided)}${a.channel ? ` · ${a.channel === 'cli-tty' ? '대화형 CLI' : a.channel}` : ''} · ${a.comment ?? ''}`]] as [string, string][]) : []),
+            ...(a.decision ? ([['결정', `${a.decision} · ${when(a.decided)}${a.channel ? ` · ${a.channel === 'cli-tty' ? '대화형 CLI' : a.channel === 'web' ? '화면' : a.channel}` : ''}${a.comment ? ` · ${a.comment}` : ''}`]] as [string, string][]) : []),
             // 14-15: 같은 사용자 권한의 Agent도 이 채널을 흉내 낼 수 있다. 막지 않고 한계로 보인다
             ...(a.channel_note ? ([['승인 채널의 한계', a.channel_note]] as [string, string][]) : []),
           ]}
         />
-        <div className="flex flex-wrap items-center gap-3">
-          <Button disabled>승인</Button>
-          <Button variant="outline" disabled>
-            반려
-          </Button>
-          <span className="text-xs text-muted-foreground">지금 시안에서는 결과를 볼 수만 있습니다. 승인·반려는 아직 할 수 없습니다.</span>
-        </div>
+        {a.decision ? null : <Decide approvalId={id} submissionId={a.submission_id} />}
       </Section>
       <Section title="같은 제출 기록의 검수 근거">
         {evs.length ? (
