@@ -286,5 +286,15 @@
     },
     "approved_at": "2026-11-15",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T30",
+    "contract": "sha256:4e1df1432ef314d991a0ffb19aa9569b95ccd8d37605b54337da03917dcf1455",
+    "evidence": {
+      "T30-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43683985981 (commit 26749f4). tools/live-api.test.ts \"T30-C1: live 저장소는 출처 live로만 내주고, 다른 출처의 이벤트가 섞이면 화면 검사(E10)가 거부한다\"",
+      "T30-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43683985981 (commit 26749f4). tools/live-api.test.ts \"T30-C2: 실행 도중(승인 대기)과 끝난 뒤, 화면이 live로 받은 값과 CLI 질의 값이 같다\""
+    },
+    "approved_at": "2026-11-15",
+    "channel": "CI(auto 조건)"
   }
 ]
