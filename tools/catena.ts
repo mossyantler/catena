@@ -7,7 +7,8 @@
 // 종료 코드: 0 성공, 1 규칙 위반, 2 사용법 오류, 3 대상 없음, 4 권한 거부, 5 버전 충돌
 // --json: { schema_version, command, source: { origin, dataset_id, position, total }, data | error: { kind, message } }
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { foldBundle } from './fold.ts';
 import * as RM from './readmodel.ts';
@@ -18,12 +19,13 @@ import '../engine/accept.ts';
 import { askAgent, importAgentPlan, plannerPrompt } from '../engine/goalplan.ts';
 import { runWorkflow } from '../engine/workflow.ts';
 import { projectSettings } from '../engine/step.ts';
+import { serve } from '../engine/serve.ts';
 import { me } from '../engine/supervise.ts';
 import { tmpdir } from 'node:os';
 import { createInterface } from 'node:readline/promises';
 
 export const CLI_SCHEMA = 2; // 2: run_attempt·agent_round·repairs, 승인 범위, show의 relations, raw 명령(T27)
-const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더 · plan from-goal "<goal>" [--agent claude-code|codex] [--project-id ID] [--store 폴더] · project configure --store 폴더 [--repo git저장소] [--permission-mode 모드] [--budget USD] · run <Task> --store 폴더 [--base-ref commit] [--budget USD]';
+const USAGE = 'node tools/catena.ts <status|ready|inbox|graph [노드]|show <Task>|agents <Task>|activity <Task> <노드>|raw <sha256:원문>> [--bundle 폴더 | --store 폴더] [--at N] [--json] · plan import <계획 파일> [--store 폴더] · approve <승인 요청 ID> [--reject --comment 이유] --store 폴더 · plan from-goal "<goal>" [--agent claude-code|codex] [--project-id ID] [--store 폴더] · project configure --store 폴더 [--repo git저장소] [--permission-mode 모드] [--budget USD] · run <Task> --store 폴더 [--base-ref commit] [--budget USD] [--detach] · serve --store 폴더 [--foreground]';
 const EXIT: Record<Reason, number> = { '규칙 위반': 1, '대상 없음': 3, '권한 거부': 4, '버전 충돌': 5 };
 class CliError extends Error {
   kind: string; code: number;
@@ -245,7 +247,7 @@ async function approve(args: string[], storeDir: string | undefined, json: boole
 
 // run: Task를 시작하고(착수 요청) 워크플로우가 끝날 때까지 이 프로세스가 감독한다(Engine MVP, 6-10). 승인을 기다리는 동안에는
 // 다른 터미널에서 catena approve로 결정한다
-async function runTask(args: string[], storeDir: string | undefined, baseRef: string | undefined, budget: string | undefined) {
+async function runTask(args: string[], storeDir: string | undefined, baseRef: string | undefined, budget: string | undefined, detach: boolean) {
   const [taskId] = args;
   if (!taskId || !storeDir) throw new CliError('사용법 오류', 2, USAGE);
   const s = openStore(storeDir);
@@ -255,9 +257,34 @@ async function runTask(args: string[], storeDir: string | undefined, baseRef: st
       args: { task_id: taskId, base_ref: baseRef, ...(budget ? { budget_usd: Number(budget) } : {}) } });
     if (!r.ok) throw new CliError(r.reason, EXIT[r.reason], r.message);
     const run_id = r.events.find(e => e.type === 'run.created')!.payload.run_id;
+    // --detach: 착수만 요청한다. 배경의 serve가 이 Run을 감독한다(T32)
+    if (detach) return { run_id, outcome: '대기', reason: 'serve가 감독한다', iterations: 0 };
     console.error(`${run_id} 시작. 끝날 때까지 이 터미널이 감독한다(사용자 승인이 필요하면 다른 터미널에서 catena approve).`);
     return { run_id, ...(await runWorkflow(s, { run_id, holder: me(), log: msg => console.error(msg) })) };
   } finally { s.close(); }
+}
+
+// serve: 백그라운드 Orchestrator(T32). 기본은 터미널과 분리된 프로세스로 띄우고(터미널을 닫아도 계속된다) 기록은 저장소 폴더의
+// serve.log, 프로세스 ID는 serve.pid에 남긴다. --foreground면 이 터미널에서 돈다. 시험용 환경 변수: CATENA_AGENT_COMMAND(JSON 배열),
+// CATENA_LEASE_MS(감독 임대 길이)
+async function serveCmd(storeDir: string | undefined, foreground: boolean) {
+  if (!storeDir) throw new CliError('사용법 오류', 2, USAGE);
+  if (!existsSync(join(storeDir, 'catena.db'))) throw new CliError('대상 없음', 3, `Project 저장소를 찾을 수 없다: ${storeDir}`);
+  const pidFile = join(storeDir, 'serve.pid');
+  if (!foreground) {
+    const old = existsSync(pidFile) ? Number(readFileSync(pidFile, 'utf8')) : 0;
+    const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+    if (old && alive(old)) throw new CliError('규칙 위반', 1, `이 저장소에는 이미 serve가 돌고 있다(pid ${old}). 아니라면 ${pidFile}을(를) 지운다`);
+    const log = openSync(join(storeDir, 'serve.log'), 'a');
+    const child = spawn(process.execPath, [import.meta.filename, 'serve', '--store', storeDir, '--foreground'], { detached: true, stdio: ['ignore', log, log] });
+    child.unref();
+    writeFileSync(pidFile, String(child.pid));
+    return { pid: child.pid, log: join(storeDir, 'serve.log') };
+  }
+  const s = openStore(storeDir);
+  const command = process.env.CATENA_AGENT_COMMAND ? JSON.parse(process.env.CATENA_AGENT_COMMAND) : undefined;
+  await serve(s, { log: m => console.log(`${new Date().toISOString()} ${m}`), command, ttlMs: Number(process.env.CATENA_LEASE_MS) || undefined });
+  return { pid: process.pid, log: null };
 }
 
 // plan from-goal: Agent에게 goal을 주어 작업 분해를 계획 파일 형식으로 받고, plan import와 같은 검사를 거쳐 불러온다(T38).
@@ -299,6 +326,9 @@ function main(argv: string[]) {
   const modeArg = opt('--permission-mode');
   const reject = argv.includes('--reject');
   if (reject) argv.splice(argv.indexOf('--reject'), 1);
+  const flag = (name: string) => { const i = argv.indexOf(name); if (i >= 0) argv.splice(i, 1); return i >= 0; };
+  const detach = flag('--detach');
+  const foreground = flag('--foreground');
   const [cmd, ...args] = argv;
   let source: any = null;
   const fail = (err: unknown) => {
@@ -308,9 +338,15 @@ function main(argv: string[]) {
     process.exitCode = err.code;
   };
   if (cmd === 'run') {
-    runTask(args, storeDir, baseRefArg, budgetArg).then(data => {
+    runTask(args, storeDir, baseRefArg, budgetArg, detach).then(data => {
       if (json) console.log(JSON.stringify({ schema_version: CLI_SCHEMA, command: 'run', source: { origin: 'live', store: storeDir }, data }, null, 2));
       else console.log(`${data.run_id}: ${data.outcome}${data.reason ? ` (${data.reason})` : ''} · 회차 ${data.iterations}`);
+    }, fail);
+    return;
+  }
+  if (cmd === 'serve') {
+    serveCmd(storeDir, foreground).then(data => {
+      if (data.log) console.log(`serve를 배경에서 띄웠다: pid ${data.pid} · 기록 ${data.log} · 끄기: kill ${data.pid}`);
     }, fail);
     return;
   }
