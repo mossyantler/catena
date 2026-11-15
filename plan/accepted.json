@@ -208,5 +208,36 @@
     },
     "approved_at": "2026-11-14",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T22",
+    "contract": "sha256:549d8519c044bb3c843433e76817338fd430b9d04c6f5883e24b0f7b7f5cf1d8",
+    "evidence": {
+      "T22-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43586827063 (commit c4115fb). engine/accept.test.ts \"T22-C1: 승인은 대화형 CLI에서만 받는다. 비대화형 실행·Runner 채널·사람이 아닌 주체의 승인은 거부된다\"",
+      "T22-C2": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43586827063 (commit c4115fb). engine/accept.test.ts \"T22-C2: 검수 기록에서 Baseline·근거·승인·commit을 따라갈 수 있고, 검사 뒤 작업공간이 바뀌어도 검수 대상은 그대로다\"",
+      "T22-C3": "검수표에서 사용자가 승인(2026-11-14T12:58:24.164Z, https://macmini.ewe-mermaid.ts.net:5182/?review=accept, 결정 파일 ~/.catena/reviews/acceptance.json). 검토 대상: 14-15 결정(한계로 두고 표시, 명세 v0.10.6)과 그 구현(승인 기록의 채널·한계 문구, 승인 화면 표시)"
+    },
+    "approved_at": "2026-11-14",
+    "channel": "검수표"
+  },
+  {
+    "task_id": "T35",
+    "contract": "sha256:bc66e899b62f91e4f4efb217294dd7d8b258914192f2f72faadf95f5096c725c",
+    "evidence": {
+      "T35-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588749009 (commit 4993ce0). tools/copy-review-store.test.ts(항목별 저장·재조회·잘못된 입력 거부·동시 수정 충돌 거부·내보내기)",
+      "T35-C2": "검수표에서 사용자가 승인(2026-11-14T12:58:21.153Z, https://macmini.ewe-mermaid.ts.net:5182/?review=accept, 결정 파일 ~/.catena/reviews/acceptance.json). 검토 대상: 문구 첨삭 화면(?review=copy)에서 항목별 첨삭·원문 유지·보류·저장 후 이어보기·내보내기"
+    },
+    "approved_at": "2026-11-14",
+    "channel": "검수표"
+  },
+  {
+    "task_id": "T36",
+    "contract": "sha256:aa5eb176578fe5da4b5594bcade240c30bc0e83e0ddf56c6518cfb0a7abdc792",
+    "evidence": {
+      "T36-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43588749009 (commit 4993ce0). tools/acceptance-store.test.ts \"T36-C1: 사람 확인 조건이 남은 Task만 고르고…\", \"T36-C1: 결정은 승인·반려·보류만…\", \"T36-C1: 측정표 저장은 사용자 열만 바꾸고…\"",
+      "T36-C2": "검수표에서 사용자가 승인(2026-11-14T12:58:23.195Z, https://macmini.ewe-mermaid.ts.net:5182/?review=accept, 결정 파일 ~/.catena/reviews/acceptance.json). 사용자가 다른 기기에서 Tailscale HTTPS로 검수표를 열어 결정을 남김"
+    },
+    "approved_at": "2026-11-14",
+    "channel": "검수표"
   }
 ]
