@@ -5,6 +5,7 @@ import { copyFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadDecisions, loadSheet, parseCsv, reviewItems, saveDecision, saveSheet, writeCsv } from './acceptance-store.ts';
+import { planTasks } from './planfold.ts';
 
 const plan = JSON.parse(readFileSync(new URL('../plan/catena.plan.json', import.meta.url), 'utf8'));
 const accepted = JSON.parse(readFileSync(new URL('../plan/accepted.json', import.meta.url), 'utf8'));
@@ -14,9 +15,12 @@ test('T36-C1: 사람 확인 조건이 남은 Task만 고르고, 선행 Task가 �
   const done = new Set(accepted.map((a: any) => a.task_id));
   assert.ok(items.length && items.every(i => !done.has(i.task_id) && i.conditions.length), '검수된 Task와 auto 조건만 있는 Task는 빠진다');
   assert.ok(items.every(i => i.conditions.every(c => /-C\d+$/.test(c.id))));
-  const t07 = items.find(i => i.task_id === 'T07');
-  assert.ok(t07 && !t07.now, 'T07은 T06을 기다린다');
-  assert.ok(items.some(i => i.now), '지금 검수할 Task가 있다');
+  // 실제 계획의 진행과 상관없이: 선행 Task가 모두 검수된 것만 지금 검수할 것이다
+  const tasks = new Map(planTasks(plan).map((t: any) => [t.id, t]));
+  for (const i of items) {
+    const deps = Object.values<string>(tasks.get(i.task_id).inputs ?? {}).map(x => x.split('.')[0]);
+    assert.equal(i.now, deps.every(d => done.has(d)), i.task_id);
+  }
 });
 
 test('T36-C1: 결정은 승인·반려·보류만, 반려는 이유가 있어야 하며, 다른 화면에서 바꾼 결정은 덮어쓰지 않는다', () => {

@@ -47,7 +47,7 @@ export default function AcceptancePage() {
       <Section title={`지금 검수할 것 ${now.length}개`} description="선행 Task가 모두 검수돼 지금 확인할 수 있는 Task입니다.">
         {now.length ? now.map((it) => <ItemCard key={it.task_id} item={it} decisions={data.decisions} />) : <Notice>지금 검수할 Task가 없습니다.</Notice>}
       </Section>
-      <SheetForm initial={data.sheet} />
+      {now.some((i) => i.task_id === 'T06') ? <SheetForm initial={data.sheet} /> : null}
       <Section title={`선행 Task를 기다리는 것 ${later.length}개`} description="선행 Task가 검수되면 위로 올라옵니다.">
         <ul className="flex flex-col gap-2 text-sm">
           {later.map((it) => (
