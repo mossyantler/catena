@@ -305,5 +305,15 @@
     },
     "approved_at": "2026-11-15",
     "channel": "CI(auto 조건)"
+  },
+  {
+    "task_id": "T38",
+    "contract": "sha256:32e8b06f23a57f27393632c613c16d01ec434232b4c255fc7834301131c8e229",
+    "evidence": {
+      "T38-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43685429048 (commit 87c578c). engine/goalplan.test.ts \"T38-C1: Agent가 낸 계획이 검사를 통과하면 공정으로 불러오고, Task마다 고른 Agent와 선후 관계가 공정표에 보인다\", \"T38-C1: 순환·없는 선행 Task·형식 오류·JSON이 아닌 출력은 아무것도 남기지 않고 이유를 보인다\"",
+      "T38-C2": "사용자가 goal \"블로그 제작을 위한, LaTeX를 활용한 다양한 시각화(구조도, 정적 함수 그래프, manim 동적 애니메이션) 제작 엔진\"을 정하고 Codex(codex-cli 0.167.2)에 주어 받은 계획(Task 10개, 완료 조건 13개, 담당 Agent codex 5·claude-code 5)을 ~/.catena/projects/latex-viz-engine으로 불러와 대시보드 ?live=latex-viz-engine에서 확인한 뒤 대화에서 \"T38 승인할게\"(2026-11-15)로 승인"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "Claude Code 대화"
   }
 ]
