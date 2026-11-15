@@ -42,7 +42,7 @@ export function CondCount({ id }: { id: string }) {
 /** 첫 번째 차단 이유 한 줄. */
 export function BlockText({ id }: { id: string }) {
   const { c, w } = useCard(id)
-  if (!w) return <>차단 없음</>
+  if (!w) return <>보류 사유 없음</>
   return (
     <>
       {waitLabel(w)}: {w.resolve}
