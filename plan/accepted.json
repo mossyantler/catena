@@ -267,5 +267,14 @@
     },
     "approved_at": "2026-11-15",
     "channel": "Claude Code 대화"
+  },
+  {
+    "task_id": "T34",
+    "contract": "sha256:0f48c30269047c987fd8b5a8f681423f1fa4a10325f00f317d0a3cfdc74639f3",
+    "evidence": {
+      "T34-C1": "CI 통과(시험·타입 검사·lint·빌드): https://github.com/mossyantler/catena/actions/runs/43678513662 (commit d6be597). tools/eventformat.test.ts \"T34-C1: 두 시나리오 묶음의 이벤트가 모두 형식 버전 1에 맞는다\"; Engine이 발행하는 이벤트는 명령 계층(engine/commands.ts)이 formatErrors로 확인하므로 engine 시험 전체가 통과한 것이 그 확인이다(engine/mvp.test.ts A → B의 actor 규칙과 승인 종류 품질 포함)"
+    },
+    "approved_at": "2026-11-15",
+    "channel": "CI(auto 조건)"
   }
 ]
