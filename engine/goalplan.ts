@@ -5,6 +5,7 @@ import { lines, start } from './runner.ts';
 import { prepareCodex } from './codex.ts';
 import { prepare } from './runner.ts';
 import { AGENTS, execute, type Reason } from './commands.ts';
+import { LOCKFILES } from './submit.ts';
 import type { Store } from './store.ts';
 
 export function plannerPrompt(goal: string, projectId: string): string {
@@ -16,9 +17,11 @@ export function plannerPrompt(goal: string, projectId: string): string {
     ' "milestones":[],"wbs":[{"id":"T01","name":"<대상 + 일의 종류(…구현, …설계, …시험)>","phase":"P2","goal":"<무엇을 만드는지>",',
     '  "inputs":{"<입력 항목>":"<선행 Task ID>.<그 Task의 결과 항목>"},"outputs":{"<결과 항목>":"코드"},',
     '  "conditions":[{"id":"T01-C1","method":"auto","slot":"<결과 항목>","text":"<완료 조건>","verify":{"command":"<검사 명령>"}}],',
-    `  "agent":"<${AGENTS.join(' 또는 ')}>"}]}`,
+    `  "agent":"<${AGENTS.join(' 또는 ')}>","write_scope":["<이 Task가 만들거나 바꾸는 경로 glob(선택), 예: src/**>"]}]}`,
     '규칙: Task끼리의 순서는 inputs로만 표현하고 순환이 없어야 한다. inputs는 이미 있는 Task의 결과 항목만 가리킨다.',
     '사람이 확인해야 하는 조건은 method를 "human"으로 두고 verify를 적지 않는다.',
+    // 잠금 파일 규칙(submit.ts, T20)을 모르면 검사 명령이 잠금 파일을 요구하는데 그 파일은 쓰기 범위 밖이라 통과할 수 없는 Task가 생긴다(2026-11-16 LaTeX 시각화 계획 T02)
+    `의존성 잠금 파일(${[...LOCKFILES].join(', ')})은 write_scope에 경로를 그대로 적은 Task만 만들거나 바꿀 수 있다. write_scope를 적지 않으면 잠금 파일을 뺀 저장소 전체다. 검사 명령이 잠금 파일을 요구하면(예: uv sync --locked, npm ci) 그 파일을 만드는 Task의 write_scope에 경로를 적는다.`,
   ].join('\n');
 }
 

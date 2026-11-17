@@ -14,7 +14,7 @@ export type Change = { status: string; path: string }; // status: A(새 파일) 
 
 // 의존성 잠금 파일은 write_scope에 경로를 직접 적지 않으면 범위 밖이다(TaskContract write_scope, 7-8).
 // shortcut: 흔한 잠금 파일 이름만 안다. 다른 생태계를 쓰는 Project가 생기면 Project 설정으로 넓힌다.
-const LOCKFILES = new Set(['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb',
+export const LOCKFILES = new Set(['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb',
   'Cargo.lock', 'go.sum', 'poetry.lock', 'uv.lock', 'Pipfile.lock', 'Gemfile.lock', 'composer.lock']);
 
 /** 경로가 쓰기 범위 안인가. scope가 없으면(계획에 적지 않음) 저장소 전체다. 패턴은 glob(`src/**`)이다. */

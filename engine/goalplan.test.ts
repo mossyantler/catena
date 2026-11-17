@@ -51,6 +51,7 @@ test('T38: Agent에게는 계획만 받는다 — Claude Code는 plan 권한 모
   const dir = mkdtempSync(join(tmpdir(), 'catena-goal-'));
   const prompt = plannerPrompt('회의실 예약 서비스를 만든다', 'g');
   assert.match(prompt, /JSON 하나만/);
+  assert.match(prompt, /잠금 파일\(.*uv\.lock.*\)은 write_scope에 경로를 그대로 적은 Task만/, '쓰기 범위 밖 잠금 파일 때문에 통과할 수 없는 검사 조건이 생기지 않게 규칙을 알린다');
   process.env.FAKE_PLAN = JSON.stringify(GOOD);
   try {
     process.env.FAKE_CLAUDE_MODE = 'plan';
